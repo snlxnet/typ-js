@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <title>hello-wasm example</title>
+  </head>
+  <body>
+    <script type="module">
+      import init, { add_one } from "./pkg/typ_js.js";
+
+      init().then(() => {
+        console.log(add_one(4))
+      });
+    </script>
+  </body>
+</html>
