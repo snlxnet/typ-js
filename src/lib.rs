@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    path::PathBuf,
     sync::{Mutex, OnceLock},
 };
 
@@ -15,7 +14,7 @@ use typst::{
 };
 use wasm_bindgen::prelude::*;
 
-pub struct WrapperWorld {
+pub struct TypJs {
     main: FileId,
     lib: LazyHash<Library>,
     book: LazyHash<FontBook>,
@@ -39,7 +38,7 @@ impl FromPath for FileId {
     }
 }
 
-impl WrapperWorld {
+impl TypJs {
     pub fn new() -> Self {
         let (book, fonts) = Self::get_default_fonts();
         let main = FileId::from_path("/main.typ");
@@ -75,22 +74,6 @@ impl WrapperWorld {
             .collect()
     }
 
-    // from obsidian-typst
-    fn get_default_fonts() -> (FontBook, Vec<Font>) {
-        let mut book = FontBook::new();
-        let mut fonts = Vec::new();
-
-        for bytes in typst_assets::fonts() {
-            let buffer = Bytes::new(bytes);
-            for font in Font::iter(buffer) {
-                book.push(font.info().clone());
-                fonts.push(font);
-            }
-        }
-
-        return (book, fonts);
-    }
-
     pub fn touch_text(&mut self, name: &str, text: &str) {
         let path = format!("/{name}.typ");
         let id = FileId::from_path(&path);
@@ -112,9 +95,25 @@ impl WrapperWorld {
 
         fs.insert(id, FileEntry::Bin(Bytes::new(data)));
     }
+
+    // from obsidian-typst
+    fn get_default_fonts() -> (FontBook, Vec<Font>) {
+        let mut book = FontBook::new();
+        let mut fonts = Vec::new();
+
+        for bytes in typst_assets::fonts() {
+            let buffer = Bytes::new(bytes);
+            for font in Font::iter(buffer) {
+                book.push(font.info().clone());
+                fonts.push(font);
+            }
+        }
+
+        return (book, fonts);
+    }
 }
 
-impl World for WrapperWorld {
+impl World for TypJs {
     fn library(&self) -> &LazyHash<Library> {
         &self.lib
     }
