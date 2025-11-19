@@ -7,4 +7,9 @@ edition = "2024"
 crate-type = ["cdylib"]
 
 [dependencies]
+chrono = "0.4.42"
+typst = "0.14.0"
+typst-assets = { version = "0.14.0", features = ["fonts"] }
+typst-pdf = "0.14.0"
+typst-svg = "0.14.0"
 wasm-bindgen = "0.2.105"
