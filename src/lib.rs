@@ -66,14 +66,19 @@ impl TypJs {
         }
     }
 
-    pub fn rm(&mut self, name: &str) {
+    /// Deletes a given file
+    pub fn delete(&mut self, name: &str) {
         let mut files = self.files.lock().unwrap();
         let id = FileId::from_name(name);
 
         files.remove(&id);
     }
 
-    pub fn ls(&self) -> Vec<String> {
+    /// Returns the paths to all files available to the compiler,
+    /// including `main.typ`.
+    ///
+    /// Paths do *NOT* start with `/`.
+    pub fn list(&self) -> Vec<String> {
         self.files
             .lock()
             .unwrap()
@@ -84,8 +89,11 @@ impl TypJs {
             .collect()
     }
 
-    pub fn touch_text(&mut self, name: &str, text: &str) {
-        let id = FileId::from_name(name);
+    /// Sets the text content of a given `.typ` file.
+    ///
+    /// The root file is called `main.typ`
+    pub fn set(&mut self, filename: &str, text: &str) {
+        let id = FileId::from_name(filename);
 
         let Ok(mut fs) = self.files.lock() else {
             return;
@@ -94,8 +102,9 @@ impl TypJs {
         fs.insert(id, FileEntry::Text(Source::new(id, text.to_string())));
     }
 
-    pub fn touch_bin(&mut self, name: &str, data: Vec<u8>) {
-        let path = format!("/{name}.typ");
+    /// Adds a binary file (image, font, etc.)
+    pub fn add(&mut self, filename: &str, data: Vec<u8>) {
+        let path = format!("/{filename}");
         let id = FileId::from_path(&path);
 
         let Ok(mut fs) = self.files.lock() else {
@@ -105,7 +114,8 @@ impl TypJs {
         fs.insert(id, FileEntry::Bin(Bytes::new(data)));
     }
 
-    pub fn render_to_svg(&self) -> String {
+    /// Outputs an SVG string with the rendered document
+    pub fn svg(&self) -> String {
         match typst::compile::<PagedDocument>(&self).output {
             Err(why) => why
                 .iter()
@@ -188,9 +198,4 @@ impl World for TypJs {
             naive.day().try_into().ok()?,
         )
     }
-}
-
-#[wasm_bindgen]
-pub fn add_one(x: u32) -> u32 {
-    x + 1
 }
