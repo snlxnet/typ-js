@@ -5,16 +5,31 @@
     <title>hello-wasm example</title>
   </head>
   <body>
+    <textarea id="input" placeholder="Type here"></textarea>
+    <div id="output">
+      Loading...
+    </div>
+
     <script>
       // For playing around in the REPL
-      let typJs;
-      import("/pkg/typ_js.js").then(pkg => typJs = pkg)
+      let typ;
+      import("/pkg/typ_js.js").then(pkg => typ = pkg)
     </script>
+
     <script type="module">
-      import init, { add_one } from "./pkg/typ_js.js";
+      import init, { TypJs } from "./pkg/typ_js.js";
+
+      const input = document.getElementById("input")
+      const output = document.getElementById("output")
 
       init().then(() => {
-        console.log(add_one(4))
+        const typ = TypJs.new()
+        output.innerHTML = typ.svg()
+
+        input.addEventListener("input", () => {
+          typ.set("main.typ", input.value)
+          output.innerHTML = typ.svg()
+        })
       });
     </script>
   </body>
