@@ -8,12 +8,14 @@ use typst::{
     Library, LibraryExt, World,
     diag::FileError,
     foundations::{Bytes, Datetime},
+    layout::PagedDocument,
     syntax::{FileId, Source, VirtualPath},
     text::{Font, FontBook},
     utils::LazyHash,
 };
 use wasm_bindgen::prelude::*;
 
+#[wasm_bindgen]
 pub struct TypJs {
     main: FileId,
     lib: LazyHash<Library>,
@@ -30,14 +32,20 @@ pub enum FileEntry {
 
 trait FromPath {
     fn from_path(path: &str) -> Self;
+    fn from_name(name: &str) -> Self;
 }
 
 impl FromPath for FileId {
     fn from_path(path: &str) -> Self {
         Self::new(None, VirtualPath::new(path))
     }
+
+    fn from_name(name: &str) -> Self {
+        Self::new(None, VirtualPath::new(format!("/{name}")))
+    }
 }
 
+#[wasm_bindgen]
 impl TypJs {
     pub fn new() -> Self {
         let (book, fonts) = Self::get_default_fonts();
@@ -58,25 +66,26 @@ impl TypJs {
         }
     }
 
-    pub fn rm(&mut self, id: FileId) {
+    pub fn rm(&mut self, name: &str) {
         let mut files = self.files.lock().unwrap();
+        let id = FileId::from_name(name);
 
         files.remove(&id);
     }
 
-    pub fn ls(&self) -> Vec<FileId> {
+    pub fn ls(&self) -> Vec<String> {
         self.files
             .lock()
             .unwrap()
             .keys()
             .into_iter()
-            .map(|id| id.clone())
+            .flat_map(|id| id.vpath().as_rootless_path().to_str())
+            .map(|str| str.to_string())
             .collect()
     }
 
     pub fn touch_text(&mut self, name: &str, text: &str) {
-        let path = format!("/{name}.typ");
-        let id = FileId::from_path(&path);
+        let id = FileId::from_name(name);
 
         let Ok(mut fs) = self.files.lock() else {
             return;
@@ -94,6 +103,16 @@ impl TypJs {
         };
 
         fs.insert(id, FileEntry::Bin(Bytes::new(data)));
+    }
+
+    pub fn render_to_svg(&self) -> String {
+        match typst::compile::<PagedDocument>(&self).output {
+            Err(why) => why
+                .iter()
+                .map(|e| format!("{} [hint: {:?}];", e.message, e.hints))
+                .collect(),
+            Ok(doc) => doc.pages.iter().map(|page| typst_svg::svg(page)).collect(),
+        }
     }
 
     // from obsidian-typst

@@ -5,6 +5,11 @@
     <title>hello-wasm example</title>
   </head>
   <body>
+    <script>
+      // For playing around in the REPL
+      let typJs;
+      import("/pkg/typ_js.js").then(pkg => typJs = pkg)
+    </script>
     <script type="module">
       import init, { add_one } from "./pkg/typ_js.js";
 
