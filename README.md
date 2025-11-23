@@ -1,6 +1,6 @@
 # typ-js
 
-> A simple JS wrapper for the [typst](github.com/typst/typst) compiler.
+> A simple JS wrapper for the [typst](https://github.com/typst/typst) compiler.
 
 ## Plans
 - [x] render to SVG
