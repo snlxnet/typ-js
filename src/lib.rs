@@ -6,13 +6,15 @@ use std::{
 use chrono::{DateTime, Datelike, Local};
 use typst::{
     Library, LibraryExt, World,
-    diag::FileError,
+    diag::{FileError, SourceDiagnostic},
+    ecow::EcoVec,
     foundations::{Bytes, Datetime},
     layout::PagedDocument,
     syntax::{FileId, Source, VirtualPath},
     text::{Font, FontBook},
     utils::LazyHash,
 };
+use typst_pdf::PdfOptions;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -22,7 +24,14 @@ pub struct TypJs {
     book: LazyHash<FontBook>,
     fonts: Vec<Font>,
     files: Mutex<HashMap<FileId, FileEntry>>,
+    errors: Vec<TypJsError>,
     now: OnceLock<DateTime<Local>>,
+}
+
+#[wasm_bindgen]
+pub struct TypJsError {
+    message: String,
+    hint: String,
 }
 
 pub enum FileEntry {
@@ -62,6 +71,7 @@ impl TypJs {
             book: LazyHash::new(book),
             fonts,
             files,
+            errors: Vec::new(),
             now: OnceLock::new(),
         }
     }
@@ -115,14 +125,39 @@ impl TypJs {
     }
 
     /// Outputs an SVG string with the rendered document
-    pub fn svg(&self) -> String {
-        match typst::compile::<PagedDocument>(&self).output {
-            Err(why) => why
-                .iter()
-                .map(|e| format!("{} [hint: {:?}];", e.message, e.hints))
-                .collect(),
+    ///
+    /// If there are compile errors, sets the `errors` field and returns empty string
+    pub fn svg(&mut self) -> String {
+        match typst::compile::<PagedDocument>(self).output {
+            Err(errors) => {
+                self.process_compile_errors(errors);
+                String::new()
+            }
             Ok(doc) => doc.pages.iter().map(|page| typst_svg::svg(page)).collect(),
         }
+    }
+
+    /// Outputs a PDF with the rendered document as a UInt8Array
+    ///
+    /// If there are compile errors, sets the `errors` field and returns empty array
+    pub fn pdf(&mut self) -> Vec<u8> {
+        match typst::compile::<PagedDocument>(self).output {
+            Err(errors) => {
+                self.process_compile_errors(errors);
+                Vec::new()
+            }
+            Ok(doc) => typst_pdf::pdf(&doc, &PdfOptions::default()).unwrap_or_default(),
+        }
+    }
+
+    fn process_compile_errors(&mut self, errors: EcoVec<SourceDiagnostic>) {
+        self.errors = errors
+            .iter()
+            .map(|error| TypJsError {
+                message: error.message.to_string(),
+                hint: error.hints.join(", ").to_string(),
+            })
+            .collect();
     }
 
     // from obsidian-typst

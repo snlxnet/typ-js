@@ -3,9 +3,9 @@
 > A simple JS wrapper for the [typst](github.com/typst/typst) compiler.
 
 ## Plans
-- [ ] render to SVG
-- [ ] render to PDF
-- [ ] add js `File`s
+- [x] render to SVG
+- [x] render to PDF
+- [x] add js `File`s
 - [ ] first release
 - [ ] set up CI for this repo
 - [ ] auto-download fonts

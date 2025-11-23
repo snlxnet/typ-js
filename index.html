@@ -13,6 +13,7 @@
     <div id="output">
       Loading...
     </div>
+    <button id="download">Download as PDF</button>
 
     <script>
       // For playing around in the REPL
@@ -25,6 +26,7 @@
 
       const input = document.getElementById("input")
       const file = document.getElementById("file")
+      const download = document.getElementById("download")
       const tree = document.getElementById("tree")
       const output = document.getElementById("output")
 
@@ -43,10 +45,19 @@
           if (!f) return
           const data = await f.arrayBuffer()
           const array = new Uint8Array(data)
-          console.log(array)
 
           typ.add(f.name, array)
           tree.innerHTML = typ.list()
+          output.innerHTML = typ.svg()
+        })
+
+        download.addEventListener("click", () => {
+          const file = new File([typ.pdf()], "typ-js-output.pdf")
+          const link = document.createElement("a")
+          link.href = URL.createObjectURL(file)
+          link.download = "typ-js-output.pdf"
+          link.click()
+          link.remove()
         })
       });
     </script>
