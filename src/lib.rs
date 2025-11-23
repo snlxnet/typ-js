@@ -173,8 +173,29 @@ impl TypJs {
     fn get_default_fonts() -> (FontBook, Vec<Font>) {
         let mut book = FontBook::new();
         let mut fonts = Vec::new();
+        let list = typst_assets::fonts().chain(
+            [
+                include_bytes!("../fonts/JetBrainsMono-BoldItalic.ttf").as_slice(),
+                include_bytes!("../fonts/JetBrainsMono-Bold.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-ExtraBoldItalic.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-ExtraBold.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-ExtraLightItalic.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-ExtraLight.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-Italic.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-LightItalic.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-Light.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-MediumItalic.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-Medium.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-Regular.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-SemiBoldItalic.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-SemiBold.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-ThinItalic.ttf"),
+                include_bytes!("../fonts/JetBrainsMono-Thin.ttf"),
+            ]
+            .into_iter(),
+        );
 
-        for bytes in typst_assets::fonts() {
+        for bytes in list {
             let buffer = Bytes::new(bytes);
             for font in Font::iter(buffer) {
                 book.push(font.info().clone());
