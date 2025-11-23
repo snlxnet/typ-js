@@ -2,14 +2,16 @@
 <html lang="en-US">
   <head>
     <meta charset="utf-8" />
-    <title>hello-wasm example</title>
+    <title>typ-js example</title>
   </head>
   <body>
     <textarea id="input" placeholder="Type here"></textarea>
     <input id="file" type="file"></input>
     
-    <div id="tree">
-    </div>
+    <pre id="tree">
+    </pre>
+    <pre id="errors">
+    </pre>
     <div id="output">
       Loading...
     </div>
@@ -28,6 +30,7 @@
       const file = document.getElementById("file")
       const download = document.getElementById("download")
       const tree = document.getElementById("tree")
+      const errors = document.getElementById("errors")
       const output = document.getElementById("output")
 
       init().then(() => {
@@ -38,6 +41,8 @@
         input.addEventListener("input", () => {
           typ.set("main.typ", input.value)
           output.innerHTML = typ.svg()
+          errors.innerHTML = JSON.stringify(typ.errors(), null, 4)
+          console.log({err: typ.errors()})
         })
 
         file.addEventListener("change", async () => {
@@ -47,7 +52,7 @@
           const array = new Uint8Array(data)
 
           typ.add(f.name, array)
-          tree.innerHTML = typ.list()
+          tree.innerHTML = JSON.stringify(typ.list(), null, 4)
           output.innerHTML = typ.svg()
         })
 

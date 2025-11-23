@@ -24,14 +24,8 @@ pub struct TypJs {
     book: LazyHash<FontBook>,
     fonts: Vec<Font>,
     files: Mutex<HashMap<FileId, FileEntry>>,
-    errors: Vec<TypJsError>,
+    errors: EcoVec<SourceDiagnostic>,
     now: OnceLock<DateTime<Local>>,
-}
-
-#[wasm_bindgen]
-pub struct TypJsError {
-    message: String,
-    hint: String,
 }
 
 pub enum FileEntry {
@@ -71,7 +65,7 @@ impl TypJs {
             book: LazyHash::new(book),
             fonts,
             files,
-            errors: Vec::new(),
+            errors: EcoVec::new(),
             now: OnceLock::new(),
         }
     }
@@ -96,6 +90,21 @@ impl TypJs {
             .into_iter()
             .flat_map(|id| id.vpath().as_rootless_path().to_str())
             .map(|str| str.to_string())
+            .collect()
+    }
+
+    /// Returns a list of errors if the last compilation failed or warnings if it finished successfully
+    pub fn errors(&self) -> Vec<String> {
+        self.errors
+            .iter()
+            .map(|err| {
+                format!(
+                    "SPAN: {:?} ||| MSG: {} ||| HINT: {}",
+                    err.span,
+                    err.message.clone(),
+                    err.hints.join(", ")
+                )
+            })
             .collect()
     }
 
@@ -128,12 +137,17 @@ impl TypJs {
     ///
     /// If there are compile errors, sets the `errors` field and returns empty string
     pub fn svg(&mut self) -> String {
-        match typst::compile::<PagedDocument>(self).output {
+        let compiled = typst::compile::<PagedDocument>(self);
+
+        match compiled.output {
             Err(errors) => {
-                self.process_compile_errors(errors);
+                self.errors = errors;
                 String::new()
             }
-            Ok(doc) => doc.pages.iter().map(|page| typst_svg::svg(page)).collect(),
+            Ok(doc) => {
+                self.errors = compiled.warnings;
+                doc.pages.iter().map(|page| typst_svg::svg(page)).collect()
+            }
         }
     }
 
@@ -141,23 +155,18 @@ impl TypJs {
     ///
     /// If there are compile errors, sets the `errors` field and returns empty array
     pub fn pdf(&mut self) -> Vec<u8> {
-        match typst::compile::<PagedDocument>(self).output {
+        let compiled = typst::compile::<PagedDocument>(self);
+
+        match compiled.output {
             Err(errors) => {
-                self.process_compile_errors(errors);
+                self.errors = errors;
                 Vec::new()
             }
-            Ok(doc) => typst_pdf::pdf(&doc, &PdfOptions::default()).unwrap_or_default(),
+            Ok(doc) => {
+                self.errors = compiled.warnings;
+                typst_pdf::pdf(&doc, &PdfOptions::default()).unwrap_or_default()
+            }
         }
-    }
-
-    fn process_compile_errors(&mut self, errors: EcoVec<SourceDiagnostic>) {
-        self.errors = errors
-            .iter()
-            .map(|error| TypJsError {
-                message: error.message.to_string(),
-                hint: error.hints.join(", ").to_string(),
-            })
-            .collect();
     }
 
     // from obsidian-typst
