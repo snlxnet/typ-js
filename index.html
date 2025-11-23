@@ -6,6 +6,10 @@
   </head>
   <body>
     <textarea id="input" placeholder="Type here"></textarea>
+    <input id="file" type="file"></input>
+    
+    <div id="tree">
+    </div>
     <div id="output">
       Loading...
     </div>
@@ -20,15 +24,29 @@
       import init, { TypJs } from "./pkg/typ_js.js";
 
       const input = document.getElementById("input")
+      const file = document.getElementById("file")
+      const tree = document.getElementById("tree")
       const output = document.getElementById("output")
 
       init().then(() => {
         const typ = TypJs.new()
         output.innerHTML = typ.svg()
+        tree.innerHTML = typ.list()
 
         input.addEventListener("input", () => {
           typ.set("main.typ", input.value)
           output.innerHTML = typ.svg()
+        })
+
+        file.addEventListener("change", async () => {
+          const f = file.files[0]
+          if (!f) return
+          const data = await f.arrayBuffer()
+          const array = new Uint8Array(data)
+          console.log(array)
+
+          typ.add(f.name, array)
+          tree.innerHTML = typ.list()
         })
       });
     </script>
