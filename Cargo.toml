@@ -1,5 +1,8 @@
 [package]
 name = "typ-js"
+description = "A simple JS wrapper for the typst compiler"
+repository = "https://github.com/snlxnet/typ-js"
+license = "Apache-2.0"
 version = "0.1.0"
 edition = "2024"
 

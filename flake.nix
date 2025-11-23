@@ -24,6 +24,7 @@
             bacon
             lld
             wasm-pack
+            nodejs_24
           ];
           RUST_SRC_PATH = rustPlatform.rustLibSrc;
         };
