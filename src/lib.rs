@@ -111,7 +111,7 @@ impl TypJs {
     /// Sets the text content of a given `.typ` file.
     ///
     /// The root file is called `main.typ`
-    pub fn set(&mut self, filename: &str, text: &str) {
+    pub fn write(&mut self, filename: &str, text: &str) {
         let id = FileId::from_name(filename);
 
         let Ok(mut fs) = self.files.lock() else {
@@ -122,7 +122,7 @@ impl TypJs {
     }
 
     /// Adds a binary file (image, font, etc.)
-    pub fn add(&mut self, filename: &str, data: Vec<u8>) {
+    pub fn attach(&mut self, filename: &str, data: Vec<u8>) {
         let path = format!("/{filename}");
         let id = FileId::from_path(&path);
 

@@ -39,7 +39,7 @@
         tree.innerHTML = typ.list()
 
         input.addEventListener("input", () => {
-          typ.set("main.typ", input.value)
+          typ.write("main.typ", input.value)
           output.innerHTML = typ.svg()
           errors.innerHTML = JSON.stringify(typ.errors(), null, 4)
           console.log({err: typ.errors()})
@@ -51,7 +51,7 @@
           const data = await f.arrayBuffer()
           const array = new Uint8Array(data)
 
-          typ.add(f.name, array)
+          typ.attach(f.name, array)
           tree.innerHTML = JSON.stringify(typ.list(), null, 4)
           output.innerHTML = typ.svg()
         })
