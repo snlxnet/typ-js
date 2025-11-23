@@ -169,7 +169,7 @@ impl TypJs {
         }
     }
 
-    // from obsidian-typst
+    // originally from obsidian-typst
     fn get_default_fonts() -> (FontBook, Vec<Font>) {
         let mut book = FontBook::new();
         let mut fonts = Vec::new();
@@ -217,7 +217,6 @@ impl World for TypJs {
     }
 
     fn main(&self) -> FileId {
-        // FileId::new(None, VirtualPath::new(""))
         self.main
     }
 

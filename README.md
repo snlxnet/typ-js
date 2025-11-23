@@ -2,6 +2,11 @@
 
 > A simple JS wrapper for the [typst](https://github.com/typst/typst) compiler.
 
+## Building
+```bash
+wasm-pack build --dev --target web
+```
+
 ## Plans
 - [x] render to SVG
 - [x] render to PDF

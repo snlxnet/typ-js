@@ -42,7 +42,6 @@
           typ.write("main.typ", input.value)
           output.innerHTML = typ.svg()
           errors.innerHTML = JSON.stringify(typ.errors(), null, 4)
-          console.log({err: typ.errors()})
         })
 
         file.addEventListener("change", async () => {
