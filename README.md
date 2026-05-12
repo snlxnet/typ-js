@@ -11,11 +11,12 @@ wasm-pack build --dev --target web
 - [x] render to SVG
 - [x] render to PDF
 - [x] add js `File`s
-- [ ] first release
-- [ ] set up CI for this repo
-- [ ] auto-download fonts
 - [ ] auto-download libs
-- [ ] gleam bindings
+- [ ] auto-download fonts
+- [ ] html export
+- [ ] better error reporting
+- [ ] better error handling
+- [ ] set up CI for this repo, version matching with typst
 
 ## Why not typst.ts?
 - I couldn't find the docs or examples for adding binary files in the client-only version
