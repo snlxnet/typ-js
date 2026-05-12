@@ -2241,7 +2241,7 @@ dependencies = [
 
 [[package]]
 name = "typ-js"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "typst",
  "typst-kit",
