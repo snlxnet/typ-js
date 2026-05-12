@@ -2255,7 +2255,6 @@ version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
  "typst",
- "typst-assets 0.14.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "typst-kit",
  "typst-layout",
  "typst-pdf",
@@ -2288,12 +2287,6 @@ dependencies = [
  "typst-timing",
  "typst-utils",
 ]
-
-[[package]]
-name = "typst-assets"
-version = "0.14.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5613cb719a6222fe9b74027c3625d107767ec187bff26b8fc931cf58942c834f"
 
 [[package]]
 name = "typst-assets"
@@ -2357,7 +2350,7 @@ dependencies = [
  "palette",
  "rustc-hash",
  "time",
- "typst-assets 0.14.2 (git+https://github.com/typst/typst-assets?rev=3284e80)",
+ "typst-assets",
  "typst-library",
  "typst-macros",
  "typst-svg",
@@ -2379,7 +2372,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "typst-assets 0.14.2 (git+https://github.com/typst/typst-assets?rev=3284e80)",
+ "typst-assets",
  "typst-bundle",
  "typst-library",
  "typst-syntax",
@@ -2412,7 +2405,7 @@ dependencies = [
  "rustybuzz",
  "smallvec",
  "ttf-parser",
- "typst-assets 0.14.2 (git+https://github.com/typst/typst-assets?rev=3284e80)",
+ "typst-assets",
  "typst-library",
  "typst-macros",
  "typst-syntax",
@@ -2476,7 +2469,7 @@ dependencies = [
  "ttf-parser",
  "two-face",
  "typed-arena",
- "typst-assets 0.14.2 (git+https://github.com/typst/typst-assets?rev=3284e80)",
+ "typst-assets",
  "typst-macros",
  "typst-syntax",
  "typst-timing",
@@ -2520,7 +2513,7 @@ dependencies = [
  "rustc-hash",
  "serde",
  "smallvec",
- "typst-assets 0.14.2 (git+https://github.com/typst/typst-assets?rev=3284e80)",
+ "typst-assets",
  "typst-layout",
  "typst-library",
  "typst-macros",
@@ -2561,7 +2554,7 @@ dependencies = [
  "resvg",
  "tiny-skia",
  "ttf-parser",
- "typst-assets 0.14.2 (git+https://github.com/typst/typst-assets?rev=3284e80)",
+ "typst-assets",
  "typst-layout",
  "typst-library",
  "typst-macros",
@@ -2585,7 +2578,7 @@ dependencies = [
  "rustc-hash",
  "ryu",
  "ttf-parser",
- "typst-assets 0.14.2 (git+https://github.com/typst/typst-assets?rev=3284e80)",
+ "typst-assets",
  "typst-layout",
  "typst-library",
  "typst-macros",

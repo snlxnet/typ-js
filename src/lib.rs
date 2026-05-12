@@ -9,7 +9,7 @@ use typst::{
     text::{Font, FontBook},
     utils::LazyHash,
 };
-use typst_kit::{datetime::Time, files::FileStore};
+use typst_kit::{datetime::Time, files::FileStore, fonts::FontStore};
 use typst_layout::PagedDocument;
 use typst_pdf::PdfOptions;
 use wasm_bindgen::prelude::*;
@@ -100,8 +100,7 @@ mod fs {
 #[wasm_bindgen]
 pub struct TypJs {
     lib: LazyHash<Library>,
-    book: LazyHash<FontBook>,
-    fonts: Vec<Font>,
+    fonts: FontStore,
     files: FileStore<fs::FS>,
     errors: EcoVec<SourceDiagnostic>,
     now: Time,
@@ -112,7 +111,9 @@ impl TypJs {
     pub fn new() -> Self {
         console_error_panic_hook::set_once();
 
-        let (book, fonts) = Self::get_default_fonts();
+        let mut fonts = FontStore::new();
+        fonts.extend(typst_kit::fonts::embedded());
+
         let mut files = FileStore::new(fs::FS::new());
         files
             .loader_mut()
@@ -120,7 +121,6 @@ impl TypJs {
 
         Self {
             lib: LazyHash::new(Library::default()), // stdlib
-            book: LazyHash::new(book),
             fonts,
             files,
             errors: EcoVec::new(),
@@ -214,23 +214,6 @@ impl TypJs {
             }
         }
     }
-
-    // originally from obsidian-typst
-    fn get_default_fonts() -> (FontBook, Vec<Font>) {
-        let mut book = FontBook::new();
-        let mut fonts = Vec::new();
-        let list = typst_assets::fonts();
-
-        for bytes in list {
-            let buffer = Bytes::new(bytes);
-            for font in Font::iter(buffer) {
-                book.push(font.info().clone());
-                fonts.push(font);
-            }
-        }
-
-        return (book, fonts);
-    }
 }
 
 impl World for TypJs {
@@ -239,7 +222,7 @@ impl World for TypJs {
     }
 
     fn book(&self) -> &LazyHash<FontBook> {
-        &self.book
+        &self.fonts.book()
     }
 
     fn main(&self) -> FileId {
@@ -255,7 +238,7 @@ impl World for TypJs {
     }
 
     fn font(&self, index: usize) -> Option<Font> {
-        Some(self.fonts[index].clone())
+        self.fonts.font(index)
     }
 
     fn today(&self, offset: Option<typst::foundations::Duration>) -> Option<Datetime> {
