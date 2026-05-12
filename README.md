@@ -14,6 +14,7 @@ wasm-pack build --dev --target web
 - [ ] shrink the binary
 - [ ] auto-download libs
 - [ ] make clippy happy
+- [ ] setEnv method
 - [ ] auto-download fonts
 - [ ] html export
 - [ ] better error reporting

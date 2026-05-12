@@ -1,81 +1,136 @@
-use std::{
-    collections::HashMap,
-    sync::{Mutex, OnceLock},
-};
+use std::path::Path;
 
-use chrono::{DateTime, Datelike, Local};
 use typst::{
     Library, LibraryExt, World,
-    diag::{FileError, SourceDiagnostic},
+    diag::SourceDiagnostic,
     ecow::EcoVec,
     foundations::{Bytes, Datetime},
-    layout::PagedDocument,
-    syntax::{FileId, Source, VirtualPath},
+    syntax::{FileId, Source},
     text::{Font, FontBook},
     utils::LazyHash,
 };
+use typst_kit::{datetime::Time, files::FileStore};
+use typst_layout::PagedDocument;
 use typst_pdf::PdfOptions;
 use wasm_bindgen::prelude::*;
 
+mod fs {
+    use std::{
+        collections::HashMap,
+        path::{Path, PathBuf},
+        sync::Mutex,
+    };
+
+    use typst::{
+        diag::FileError,
+        foundations::Bytes,
+        syntax::{FileId, RootedPath, VirtualPath, VirtualRoot},
+    };
+    use typst_kit::files::{FileLoader, FsRoot};
+
+    pub struct FS {
+        pub main: FileId,
+        project_path: PathBuf,
+        files: Mutex<HashMap<FileId, Bytes>>,
+    }
+
+    fn str_to_rooted(root: &Path, path: &Path) -> RootedPath {
+        let vpath = VirtualPath::virtualize(root, path).expect(&format!("{:?}", &path));
+
+        RootedPath::new(VirtualRoot::Project, vpath)
+    }
+
+    impl FS {
+        pub fn new() -> Self {
+            let project = FsRoot::new(PathBuf::from(""));
+            let project_path = project.path().to_path_buf();
+            let path = PathBuf::from("main.typ");
+            let main = str_to_rooted(&project_path, &path).intern();
+
+            Self {
+                main,
+                project_path,
+                files: Mutex::new(HashMap::new()),
+            }
+        }
+
+        fn find(&self, path: &Path) -> FileId {
+            let rooted = str_to_rooted(&self.project_path, path);
+
+            FileId::new(rooted)
+        }
+
+        pub fn delete(&mut self, path: &Path) {
+            let mut files = self.files.lock().unwrap();
+
+            files.remove(&self.find(path));
+        }
+
+        pub fn list(&self) -> Vec<String> {
+            self.files
+                .lock()
+                .unwrap()
+                .keys()
+                .into_iter()
+                .map(|id| id.vpath().get_without_slash().to_string())
+                .collect()
+        }
+
+        pub fn write(&mut self, path: &Path, data: Bytes) {
+            let Ok(mut fs) = self.files.lock() else {
+                return;
+            };
+
+            fs.insert(self.find(path), data);
+        }
+    }
+
+    impl FileLoader for FS {
+        fn load(&self, id: FileId) -> typst::diag::FileResult<typst::foundations::Bytes> {
+            let store = self.files.lock().map_err(|_| FileError::AccessDenied)?;
+
+            match store.get(&id) {
+                Some(bytes) => Ok(bytes.clone()),
+                None => Err(FileError::NotFound(id.vpath().get_with_slash().into())),
+            }
+        }
+    }
+}
+
 #[wasm_bindgen]
 pub struct TypJs {
-    main: FileId,
     lib: LazyHash<Library>,
     book: LazyHash<FontBook>,
     fonts: Vec<Font>,
-    files: Mutex<HashMap<FileId, FileEntry>>,
+    files: FileStore<fs::FS>,
     errors: EcoVec<SourceDiagnostic>,
-    now: OnceLock<DateTime<Local>>,
-}
-
-pub enum FileEntry {
-    Bin(Bytes),
-    Text(Source),
-}
-
-trait FromPath {
-    fn from_path(path: &str) -> Self;
-    fn from_name(name: &str) -> Self;
-}
-
-impl FromPath for FileId {
-    fn from_path(path: &str) -> Self {
-        Self::new(None, VirtualPath::new(path))
-    }
-
-    fn from_name(name: &str) -> Self {
-        Self::new(None, VirtualPath::new(format!("/{name}")))
-    }
+    now: Time,
 }
 
 #[wasm_bindgen]
 impl TypJs {
     pub fn new() -> Self {
-        let (book, fonts) = Self::get_default_fonts();
-        let main = FileId::from_path("/main.typ");
+        console_error_panic_hook::set_once();
 
-        let files = Mutex::new(HashMap::from([(
-            main,
-            FileEntry::Text(Source::new(main, "typ-js is ready".to_string())),
-        )]));
+        let (book, fonts) = Self::get_default_fonts();
+        let mut files = FileStore::new(fs::FS::new());
+        files
+            .loader_mut()
+            .write(Path::new("/main.typ"), Bytes::new("Hello"));
 
         Self {
-            main,
             lib: LazyHash::new(Library::default()), // stdlib
             book: LazyHash::new(book),
             fonts,
             files,
             errors: EcoVec::new(),
-            now: OnceLock::new(),
+            now: Time::system(),
         }
     }
 
     /// Deletes a given file
-    pub fn delete(&mut self, name: &str) {
-        let mut files = self.files.lock().unwrap();
-        let id = FileId::from_name(name);
-
-        files.remove(&id);
+    pub fn delete(&mut self, path: &str) {
+        self.files.loader_mut().delete(Path::new(path));
     }
 
     /// Returns the paths to all files available to the compiler,
@@ -83,14 +138,7 @@ impl TypJs {
     ///
     /// Paths do *NOT* start with `/`.
     pub fn list(&self) -> Vec<String> {
-        self.files
-            .lock()
-            .unwrap()
-            .keys()
-            .into_iter()
-            .flat_map(|id| id.vpath().as_rootless_path().to_str())
-            .map(|str| str.to_string())
-            .collect()
+        self.files.loader().list()
     }
 
     /// Returns a list of errors if the last compilation failed or warnings if it finished successfully
@@ -102,7 +150,11 @@ impl TypJs {
                     "SPAN: {:?} ||| MSG: {} ||| HINT: {}",
                     err.span,
                     err.message.clone(),
-                    err.hints.join(", ")
+                    err.hints
+                        .iter()
+                        .map(|spanned| spanned.v.clone())
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 )
             })
             .collect()
@@ -111,26 +163,17 @@ impl TypJs {
     /// Sets the text content of a given `.typ` file.
     ///
     /// The root file is called `main.typ`
-    pub fn write(&mut self, filename: &str, text: &str) {
-        let id = FileId::from_name(filename);
-
-        let Ok(mut fs) = self.files.lock() else {
-            return;
-        };
-
-        fs.insert(id, FileEntry::Text(Source::new(id, text.to_string())));
+    pub fn write(&mut self, path: &str, text: String) {
+        self.files
+            .loader_mut()
+            .write(Path::new(path), Bytes::new(text));
     }
 
     /// Adds a binary file (image, font, etc.)
-    pub fn attach(&mut self, filename: &str, data: Vec<u8>) {
-        let path = format!("/{filename}");
-        let id = FileId::from_path(&path);
-
-        let Ok(mut fs) = self.files.lock() else {
-            return;
-        };
-
-        fs.insert(id, FileEntry::Bin(Bytes::new(data)));
+    pub fn attach(&mut self, path: &str, data: Vec<u8>) {
+        self.files
+            .loader_mut()
+            .write(Path::new(path), Bytes::new(data));
     }
 
     /// Outputs an SVG string with the rendered document
@@ -146,7 +189,10 @@ impl TypJs {
             }
             Ok(doc) => {
                 self.errors = compiled.warnings;
-                doc.pages.iter().map(|page| typst_svg::svg(page)).collect()
+                doc.pages()
+                    .iter()
+                    .map(|page| typst_svg::svg(page))
+                    .collect()
             }
         }
     }
@@ -197,49 +243,22 @@ impl World for TypJs {
     }
 
     fn main(&self) -> FileId {
-        self.main
+        self.files.loader().main
     }
 
     fn source(&self, id: FileId) -> typst::diag::FileResult<Source> {
-        let fs = self.files.lock().map_err(|_| FileError::AccessDenied)?;
-
-        match fs.get(&id) {
-            Some(FileEntry::Text(source)) => Ok(source.clone()),
-            Some(FileEntry::Bin(_)) => Err(FileError::NotSource),
-            None => Err(FileError::NotFound(
-                id.vpath().as_rootless_path().to_path_buf(),
-            )),
-        }
+        self.files.source(id)
     }
 
     fn file(&self, id: FileId) -> typst::diag::FileResult<Bytes> {
-        let fs = self.files.lock().map_err(|_| FileError::AccessDenied)?;
-
-        match fs.get(&id) {
-            Some(FileEntry::Text(source)) => Ok(Bytes::from_string(source.text().to_string())),
-            Some(FileEntry::Bin(bytes)) => Ok(bytes.clone()),
-            None => Err(FileError::NotFound(
-                id.vpath().as_rootless_path().to_path_buf(),
-            )),
-        }
+        self.files.file(id)
     }
 
     fn font(&self, index: usize) -> Option<Font> {
         Some(self.fonts[index].clone())
     }
 
-    fn today(&self, offset: Option<i64>) -> Option<Datetime> {
-        let now = self.now.get_or_init(chrono::Local::now);
-
-        let naive = match offset {
-            None => now.naive_local(),
-            Some(o) => now.naive_utc() + chrono::Duration::hours(o),
-        };
-
-        Datetime::from_ymd(
-            naive.year(),
-            naive.month().try_into().ok()?,
-            naive.day().try_into().ok()?,
-        )
+    fn today(&self, offset: Option<typst::foundations::Duration>) -> Option<Datetime> {
+        self.now.today(offset)
     }
 }
