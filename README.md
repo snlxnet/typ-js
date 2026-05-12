@@ -11,7 +11,9 @@ wasm-pack build --dev --target web
 - [x] render to SVG
 - [x] render to PDF
 - [x] add js `File`s
-- [ ] shrink the binary
+- [x] shrink the binary
+- [x] switch to the latest typst builds
+- [ ] set up CI for this repo
 - [ ] auto-download libs
 - [ ] make clippy happy
 - [ ] setEnv method
@@ -19,7 +21,6 @@ wasm-pack build --dev --target web
 - [ ] html export
 - [ ] better error reporting
 - [ ] better error handling
-- [ ] set up CI for this repo, version matching with typst
 
 ## Why not typst.ts?
 - I couldn't find the docs or examples for adding binary files in the client-only version
