@@ -11,7 +11,9 @@ wasm-pack build --dev --target web
 - [x] render to SVG
 - [x] render to PDF
 - [x] add js `File`s
+- [ ] shrink the binary
 - [ ] auto-download libs
+- [ ] make clippy happy
 - [ ] auto-download fonts
 - [ ] html export
 - [ ] better error reporting
