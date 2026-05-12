@@ -109,8 +109,6 @@ pub struct TypJs {
 #[wasm_bindgen]
 impl TypJs {
     pub fn new() -> Self {
-        console_error_panic_hook::set_once();
-
         let mut fonts = FontStore::new();
         fonts.extend(typst_kit::fonts::embedded());
 
