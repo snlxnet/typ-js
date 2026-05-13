@@ -11,5 +11,4 @@ jobs:
     - uses: actions/checkout@v6
     - uses: cachix/install-nix-action@v31
     - run: nix develop -c wasm-pack build --target web --release
-    - run: cd pkg
-    - run: nix develop -c npm publish
+    - run: nix develop -c npm publish ./pkg
