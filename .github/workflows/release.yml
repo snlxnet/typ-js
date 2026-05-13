@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: cachix/install-nix-action@v31
+    - run: nix develop -c wasm-pack build --target web --release
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org/
+      - run: cd pkg
+      - run: npm publish
+
