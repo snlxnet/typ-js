@@ -13,7 +13,7 @@ wasm-pack build --dev --target web
 - [x] add js `File`s
 - [x] shrink the binary
 - [x] switch to the latest typst builds
-- [ ] set up CI for this repo
+- [x] set up CI for this repo
 - [ ] auto-download libs
 - [ ] make clippy happy
 - [ ] setEnv method
