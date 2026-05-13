@@ -1,11 +1,10 @@
 # typ-js
 
-> A simple JS wrapper for the [typst](https://github.com/typst/typst) compiler.
+(work in progress) JS wrapper for typst
 
-## Building
-```bash
-wasm-pack build --dev --target web
-```
+## Usage
+
+(coming after I improve error handling)
 
 ## Plans
 - [x] render to SVG
@@ -16,12 +15,9 @@ wasm-pack build --dev --target web
 - [x] set up CI for this repo
 - [ ] auto-download libs
 - [ ] make clippy happy
+- [ ] better error handling
 - [ ] setEnv method
 - [ ] auto-download fonts
 - [ ] html export
 - [ ] better error reporting
-- [ ] better error handling
-
-## Why not typst.ts?
-- I couldn't find the docs or examples for adding binary files in the client-only version
 

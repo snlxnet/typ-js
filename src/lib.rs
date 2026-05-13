@@ -129,6 +129,8 @@ impl TypJs {
     /// Deletes a given file
     pub fn delete(&mut self, path: &str) {
         self.files.loader_mut().delete(Path::new(path));
+
+        self.files.reset();
     }
 
     /// Returns the paths to all files available to the compiler,
@@ -165,6 +167,8 @@ impl TypJs {
         self.files
             .loader_mut()
             .write(Path::new(path), Bytes::new(text));
+
+        self.files.reset();
     }
 
     /// Adds a binary file (image, font, etc.)
