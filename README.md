@@ -13,11 +13,15 @@
 - [x] shrink the binary
 - [x] switch to the latest typst builds
 - [x] set up CI for this repo
+- [ ] add font function
 - [ ] auto-download libs
-- [ ] make clippy happy
-- [ ] better error handling
-- [ ] setEnv method
-- [ ] auto-download fonts
-- [ ] html export
-- [ ] better error reporting
+- [ ] error reporting
+- [ ] `read` URLs
+- [ ] friendly init
 
+## Goals
+- simple API
+- wide browser support
+
+I've stopped touching this months ago because I found typst-wasm.
+Restarting now because typst-wasm doesn't work in Safari if the server is HTTP.
