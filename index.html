@@ -42,7 +42,7 @@
   </head>
   <body>
     <textarea id="input" placeholder="Type here">#set page(fill: rgb("#2e2d39"))
-#set text(fill: rgb("#ccc"))
+#set text(fill: rgb("#ccc"), font: "JetBrains Mono")
 #import "@preview/yap:0.1.0"
 
 Works</textarea>
@@ -67,12 +67,18 @@ Works</textarea>
       const output = document.getElementById("output")
 
       let typ
+      async function compile() {
+        await typ.deps("main.typ")
+        const { svg, err } = await typ.svg("main.typ")
+        if (svg && err.length) console.warn(...err)
+        output.innerHTML = svg || `<pre>${JSON.stringify(err, null, 4)}</pre>`
+      }
       async function main() {
         typ = pack.TypJs.new()
 
         input.oninput = async () => {
           typ.add("main.typ", new TextEncoder().encode(input.value))
-          output.innerHTML = await typ.svg("main.typ")
+          compile()
         }
 
         typ.font(new Uint8Array(await (await fetch("/jetbrains mono.ttf")).arrayBuffer()))
@@ -85,8 +91,7 @@ Works</textarea>
           if (!f) return
           const buf = await f.arrayBuffer()
           typ.add(f.name, new Uint8Array(buf))
-
-          output.innerHTML = await typ.svg("main.typ")
+          compile()
         })
 
         download.addEventListener("click", () => {

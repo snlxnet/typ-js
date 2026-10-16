@@ -1,12 +1,15 @@
 use std::path::{Path, PathBuf};
 
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use log::info;
+use serde::Serialize;
 use typst::{
     Features, Library, LibraryExt, World,
-    diag::SourceDiagnostic,
+    diag::{FileError, Severity, SourceDiagnostic},
     ecow::EcoVec,
     foundations::{Bytes, Datetime},
     model::Document,
-    syntax::{FileId, Source},
+    syntax::{DiagSpan, DiagSpanKind, FileId, Lines, Source},
     text::{Font, FontBook},
     utils::LazyHash,
 };
@@ -211,6 +214,31 @@ mod fs {
     }
 }
 
+#[derive(Serialize)]
+struct SvgResult {
+    svg: String,
+    err: Vec<Error>,
+}
+
+#[derive(Serialize)]
+struct Error {
+    severe: bool,
+    line: usize,
+    message: String,
+    hints: Vec<String>,
+
+    start: Position,
+    end: Position,
+}
+#[derive(Serialize)]
+struct Position {
+    line: usize,
+    character: usize,
+}
+
+type CodespanResult<T> = Result<T, CodespanError>;
+type CodespanError = codespan_reporting::files::Error;
+
 #[wasm_bindgen]
 pub struct TypJs {
     lib: LazyHash<Library>,
@@ -305,18 +333,18 @@ impl TypJs {
     /// Outputs an SVG string with the rendered document
     ///
     /// If there are compile errors, sets the `errors` field and returns empty string
-    pub async fn svg(&mut self, main: &str) -> String {
+    pub async fn svg(&mut self, main: &str) -> JsValue {
         self.files.loader_mut().set_main(&PathBuf::from(main));
         let compiled = typst::compile::<PagedDocument>(self);
 
-        match compiled.output {
-            Err(errors) => {
-                self.errors = errors;
-                String::new()
-            }
+        let result = match compiled.output {
+            Err(errors) => SvgResult {
+                svg: String::new(),
+                err: self.format_diagnostics(errors),
+            },
             Ok(doc) => {
-                self.errors = compiled.warnings;
-                doc.pages()
+                let svg = doc
+                    .pages()
                     .iter()
                     .map(|page| {
                         typst_svg::svg(
@@ -330,9 +358,16 @@ impl TypJs {
                             .resolve(doc.options().get::<SvgFormat>()),
                         )
                     })
-                    .collect()
+                    .collect();
+
+                SvgResult {
+                    svg,
+                    err: self.format_diagnostics(compiled.warnings),
+                }
             }
-        }
+        };
+
+        JsValue::from_serde(&result).unwrap()
     }
 
     /// Outputs a PDF with the rendered document as a UInt8Array
@@ -354,6 +389,97 @@ impl TypJs {
                     .unwrap_or_default()
             }
         }
+    }
+
+    fn format_diagnostics(&mut self, diagnostics: EcoVec<SourceDiagnostic>) -> Vec<Error> {
+        diagnostics
+            .iter()
+            .filter_map(|diagnostic| {
+                let message = diagnostic.message.clone().to_string();
+                let hints: Vec<String> = diagnostic
+                    .hints
+                    .iter()
+                    .filter(|s| s.span.is_detached())
+                    .map(|s| format!("hint: {}", s.v))
+                    .collect();
+                let Some(range) = self.span_to_range(diagnostic.span) else {
+                    return None;
+                };
+                let Some(id) = diagnostic.span.id() else {
+                    return None;
+                };
+                let Ok(start_line) = self.line_index(id, range.start) else {
+                    return None;
+                };
+                let Ok(start_character) = self.column_number(id, range.start) else {
+                    return None;
+                };
+                let Ok(end_line) = self.line_index(id, range.end) else {
+                    return None;
+                };
+                let Ok(end_character) = self.column_number(id, range.end) else {
+                    return None;
+                };
+                let err = Error {
+                    severe: diagnostic.severity == Severity::Error,
+                    line: start_line,
+                    message,
+                    hints,
+                    start: Position {
+                        line: start_line,
+                        character: start_character,
+                    },
+                    end: Position {
+                        line: end_line,
+                        character: end_character,
+                    },
+                };
+                Some(err)
+            })
+            .collect()
+    }
+    // pretty much from typst-kit/src/diagnostics.rs
+    fn span_to_range(&mut self, span: impl Into<DiagSpan>) -> Option<std::ops::Range<usize>> {
+        match span.into().get() {
+            DiagSpanKind::Detached => None,
+            DiagSpanKind::Number { id, num, sub_range } => {
+                let source = self.source(id).ok()?;
+                source.range(num, sub_range)
+            }
+            DiagSpanKind::Range { id: _, range } => Some(range),
+        }
+    }
+    fn lines(&self, id: FileId) -> CodespanResult<Lines<String>> {
+        match self.source(id).ok() {
+            Some(source) => Ok(source.lines().clone()),
+            None => self
+                .file(id)
+                .and_then(|file| file.lines().map_err(Into::into))
+                .map_err(|err| match err {
+                    FileError::NotFound(_) => CodespanError::FileMissing,
+                    other => CodespanError::Io(std::io::Error::other(other)),
+                }),
+        }
+    }
+    fn line_index(&self, id: FileId, given: usize) -> CodespanResult<usize> {
+        let lines = self.lines(id)?;
+        lines
+            .byte_to_line(given)
+            .ok_or_else(|| CodespanError::IndexTooLarge {
+                given,
+                max: lines.len_bytes(),
+            })
+    }
+    fn column_number(&self, id: FileId, given: usize) -> CodespanResult<usize> {
+        let lines = self.lines(id)?;
+        lines.byte_to_column(given).ok_or_else(|| {
+            let max = lines.len_bytes();
+            if given <= max {
+                CodespanError::InvalidCharBoundary { given }
+            } else {
+                CodespanError::IndexTooLarge { given, max }
+            }
+        })
     }
 }
 
