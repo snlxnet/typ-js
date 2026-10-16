@@ -21,7 +21,7 @@ mod fs {
         collections::HashMap,
         io::Cursor,
         path::{Path, PathBuf},
-        sync::Mutex,
+        sync::{Arc, Mutex},
     };
 
     use log::info;
@@ -37,35 +37,8 @@ mod fs {
     };
 
     pub struct PackageLoader {
-        saved: HashMap<String, std::io::Result<(Option<usize>, bytes::Bytes)>>,
-    }
-    impl PackageLoader {
-        fn new() -> Self {
-            Self {
-                saved: HashMap::new(),
-            }
-        }
-        async fn fetch(&mut self, url: &str) {
-            use std::io::Error;
-            use std::io::ErrorKind;
-
-            let err = Error::new(ErrorKind::NotFound, "Not Found");
-
-            let result = match reqwest::Client::new().get(url).send().await {
-                Err(_) => Err(err),
-                Ok(res) => {
-                    let size: Option<usize> =
-                        res.content_length().and_then(|n| usize::try_from(n).ok());
-
-                    match res.bytes().await {
-                        Err(_) => Err(err),
-                        Ok(bytes) => Ok((size, bytes)),
-                    }
-                }
-            };
-
-            self.saved.insert(url.into(), result);
-        }
+        saved: Arc<Mutex<HashMap<String, std::io::Result<(Option<usize>, bytes::Bytes)>>>>,
+        missing: Arc<Mutex<Vec<String>>>,
     }
     impl Downloader for PackageLoader {
         fn stream(
@@ -78,12 +51,15 @@ mod fs {
 
             let err = Error::new(ErrorKind::NotFound, "Not Found");
 
-            match self.saved.get(url) {
+            match self.saved.lock().unwrap().get(url) {
                 Some(res) => match res {
                     Ok(data) => Ok((data.0, Box::new(Cursor::new(data.1.clone())))),
                     Err(_) => Err(err),
                 },
-                None => Err(err),
+                None => {
+                    self.missing.lock().unwrap().push(url.to_string());
+                    Err(err)
+                }
             }
         }
     }
@@ -92,8 +68,9 @@ mod fs {
         pub main: FileId,
         project_path: PathBuf,
         files: Mutex<HashMap<FileId, Bytes>>,
-        fetch_missing: Mutex<Vec<PackageSpec>>,
+        fetch_missing: Arc<Mutex<Vec<String>>>,
         universe: UniversePackages,
+        cache: Arc<Mutex<HashMap<String, std::io::Result<(Option<usize>, bytes::Bytes)>>>>,
     }
 
     fn str_to_rooted(root: &Path, path: &Path) -> RootedPath {
@@ -109,12 +86,19 @@ mod fs {
             let path = PathBuf::from("main.typ");
             let main = str_to_rooted(&project_path, &path).intern();
 
+            let cache = Arc::new(Mutex::new(HashMap::new()));
+            let missing = Arc::new(Mutex::new(Vec::new()));
+
             Self {
                 main,
                 project_path,
                 files: Mutex::new(HashMap::new()),
-                fetch_missing: Mutex::new(Vec::new()),
-                universe: UniversePackages::new(PackageLoader::new()),
+                universe: UniversePackages::new(PackageLoader {
+                    saved: Arc::clone(&cache),
+                    missing: Arc::clone(&missing),
+                }),
+                cache,
+                fetch_missing: missing,
             }
         }
 
@@ -148,7 +132,38 @@ mod fs {
             fs.insert(self.find(path), data);
         }
 
-        pub async fn download_packages() {}
+        pub async fn download_packages(&self) {
+            let mut run = true;
+            while run {
+                let url = self.fetch_missing.lock().unwrap().pop();
+                match url {
+                    None => run = false,
+                    Some(url) => self.fetch(&url).await,
+                }
+            }
+        }
+
+        async fn fetch(&self, url: &str) {
+            use std::io::Error;
+            use std::io::ErrorKind;
+
+            let err = Error::new(ErrorKind::NotFound, "Not Found");
+
+            let result = match reqwest::Client::new().get(url).send().await {
+                Err(_) => Err(err),
+                Ok(res) => {
+                    let size: Option<usize> =
+                        res.content_length().and_then(|n| usize::try_from(n).ok());
+
+                    match res.bytes().await {
+                        Err(_) => Err(err),
+                        Ok(bytes) => Ok((size, bytes)),
+                    }
+                }
+            };
+
+            self.cache.lock().unwrap().insert(url.into(), result);
+        }
     }
 
     impl FileLoader for FS {
@@ -163,11 +178,12 @@ mod fs {
                     VirtualRoot::Project => {
                         Err(FileError::NotFound(id.vpath().get_with_slash().into()))
                     }
-                    VirtualRoot::Package(pkg) => {
-                        self.fetch_missing
-                            .lock()
-                            .map_err(|_| FileError::AccessDenied)?
-                            .push(pkg.clone());
+                    VirtualRoot::Package(spec) => {
+                        let pkg = self.universe.package(spec);
+                        match pkg {
+                            Ok(_) => info!("got archive {:#?}", spec),
+                            Err(_) => info!("failed {:#?}", spec),
+                        }
                         Err(FileError::NotFound(id.vpath().get_with_slash().into()))
                     }
                 },
@@ -267,6 +283,10 @@ impl TypJs {
     ///
     /// If there are compile errors, sets the `errors` field and returns empty string
     pub async fn svg(&mut self) -> String {
+        // needs to be ran multiple times
+        let _before_fetch = typst::compile::<PagedDocument>(self);
+        self.files.loader().download_packages().await;
+
         let compiled = typst::compile::<PagedDocument>(self);
 
         match compiled.output {
