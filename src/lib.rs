@@ -280,22 +280,12 @@ impl TypJs {
             .collect()
     }
 
-    /// Sets the text content of a given `.typ` file.
-    ///
-    /// The root file is called `main.typ`
-    pub fn write(&mut self, path: &str, text: String) {
-        self.files
-            .loader_mut()
-            .write(Path::new(path), Bytes::new(text));
-
-        self.files.reset();
-    }
-
     /// Adds a binary file (image, font, etc.)
-    pub fn attach(&mut self, path: &str, data: Vec<u8>) {
+    pub fn add(&mut self, path: &str, data: Vec<u8>) {
         self.files
             .loader_mut()
             .write(Path::new(path), Bytes::new(data));
+        self.files.reset();
     }
 
     pub async fn deps(&mut self, main: &str) {

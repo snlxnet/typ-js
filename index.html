@@ -71,18 +71,18 @@ Works</textarea>
         typ = pack.TypJs.new()
 
         input.oninput = async () => {
-          typ.write("main.typ", input.value)
+          typ.add("main.typ", new TextEncoder().encode(input.value))
           output.innerHTML = await typ.svg("main.typ")
         }
 
-        typ.write("main.typ", input.value)
+        typ.add("main.typ", new TextEncoder().encode(input.value))
         typ.deps("main.typ").then(() => input.oninput())
 
         file.addEventListener("change", async () => {
           const f = file.files[0]
           if (!f) return
-          const data = await f.arrayBuffer()
-          const array = new Uint8Array(data)
+          const buf = await f.arrayBuffer()
+          typ.add(f.name, new Uint8Array(buf))
 
           output.innerHTML = await typ.svg("main.typ")
         })
