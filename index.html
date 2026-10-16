@@ -43,12 +43,11 @@ Works</textarea>
 
     <script>
       // For playing around in the REPL
-      let typ;
-      import("/pkg/typ_js.js").then(pkg => typ = pkg)
-    </script>
-
-    <script type="module">
-      import init, { TypJs } from "./pkg/typ_js.js";
+      let pack;
+      import("/pkg/typ_js.js").then(pkg => {
+        pack = pkg
+        return pkg.default()
+      }).then(main)
 
       const input = document.getElementById("input")
       const file = document.getElementById("file")
@@ -57,13 +56,14 @@ Works</textarea>
       const errors = document.getElementById("errors")
       const output = document.getElementById("output")
 
-      init().then(() => {
-        const typ = TypJs.new()
+      let typ
+      function main() {
+        typ = pack.TypJs.new()
         tree.innerHTML = typ.list()
 
-        input.oninput =  () => {
+        input.oninput = async () => {
           typ.write("main.typ", input.value)
-          output.innerHTML = typ.svg()
+          output.innerHTML = await typ.svg()
           errors.innerHTML = JSON.stringify(typ.errors(), null, 4)
         }
 
@@ -75,9 +75,7 @@ Works</textarea>
           const data = await f.arrayBuffer()
           const array = new Uint8Array(data)
 
-          typ.attach(f.name, array)
-          tree.innerHTML = JSON.stringify(typ.list(), null, 4)
-          output.innerHTML = typ.svg()
+          output.innerHTML = await typ.svg()
         })
 
         download.addEventListener("click", () => {
@@ -88,7 +86,7 @@ Works</textarea>
           link.click()
           link.remove()
         })
-      });
+      }
     </script>
   </body>
 </html>

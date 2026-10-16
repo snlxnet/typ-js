@@ -1,10 +1,11 @@
 use std::path::Path;
 
 use typst::{
-    Library, LibraryExt, World,
+    Features, Library, LibraryExt, World,
     diag::SourceDiagnostic,
     ecow::EcoVec,
     foundations::{Bytes, Datetime},
+    model::Document,
     syntax::{FileId, Source},
     text::{Font, FontBook},
     utils::LazyHash,
@@ -12,11 +13,13 @@ use typst::{
 use typst_kit::{datetime::Time, files::FileStore, fonts::FontStore};
 use typst_layout::PagedDocument;
 use typst_pdf::PdfOptions;
+use typst_svg::SvgFormat;
 use wasm_bindgen::prelude::*;
 
 mod fs {
     use std::{
         collections::HashMap,
+        io::Cursor,
         path::{Path, PathBuf},
         sync::Mutex,
     };
@@ -25,14 +28,72 @@ mod fs {
     use typst::{
         diag::FileError,
         foundations::Bytes,
-        syntax::{FileId, RootedPath, VirtualPath, VirtualRoot},
+        syntax::{FileId, RootedPath, VirtualPath, VirtualRoot, package::PackageSpec},
     };
-    use typst_kit::files::{FileLoader, FsRoot};
+    use typst_kit::{
+        downloader::Downloader,
+        files::{FileLoader, FsRoot},
+        packages::UniversePackages,
+    };
+
+    pub struct PackageLoader {
+        saved: HashMap<String, std::io::Result<(Option<usize>, bytes::Bytes)>>,
+    }
+    impl PackageLoader {
+        fn new() -> Self {
+            Self {
+                saved: HashMap::new(),
+            }
+        }
+        async fn fetch(&mut self, url: &str) {
+            use std::io::Error;
+            use std::io::ErrorKind;
+
+            let err = Error::new(ErrorKind::NotFound, "Not Found");
+
+            let result = match reqwest::Client::new().get(url).send().await {
+                Err(_) => Err(err),
+                Ok(res) => {
+                    let size: Option<usize> =
+                        res.content_length().and_then(|n| usize::try_from(n).ok());
+
+                    match res.bytes().await {
+                        Err(_) => Err(err),
+                        Ok(bytes) => Ok((size, bytes)),
+                    }
+                }
+            };
+
+            self.saved.insert(url.into(), result);
+        }
+    }
+    impl Downloader for PackageLoader {
+        fn stream(
+            &self,
+            _: &dyn std::any::Any,
+            url: &str,
+        ) -> std::io::Result<(Option<usize>, Box<dyn std::io::prelude::Read>)> {
+            use std::io::Error;
+            use std::io::ErrorKind;
+
+            let err = Error::new(ErrorKind::NotFound, "Not Found");
+
+            match self.saved.get(url) {
+                Some(res) => match res {
+                    Ok(data) => Ok((data.0, Box::new(Cursor::new(data.1.clone())))),
+                    Err(_) => Err(err),
+                },
+                None => Err(err),
+            }
+        }
+    }
 
     pub struct FS {
         pub main: FileId,
         project_path: PathBuf,
         files: Mutex<HashMap<FileId, Bytes>>,
+        fetch_missing: Mutex<Vec<PackageSpec>>,
+        universe: UniversePackages,
     }
 
     fn str_to_rooted(root: &Path, path: &Path) -> RootedPath {
@@ -52,6 +113,8 @@ mod fs {
                 main,
                 project_path,
                 files: Mutex::new(HashMap::new()),
+                fetch_missing: Mutex::new(Vec::new()),
+                universe: UniversePackages::new(PackageLoader::new()),
             }
         }
 
@@ -84,6 +147,8 @@ mod fs {
 
             fs.insert(self.find(path), data);
         }
+
+        pub async fn download_packages() {}
     }
 
     impl FileLoader for FS {
@@ -94,7 +159,18 @@ mod fs {
 
             match store.get(&id) {
                 Some(bytes) => Ok(bytes.clone()),
-                None => Err(FileError::NotFound(id.vpath().get_with_slash().into())),
+                None => match id.root() {
+                    VirtualRoot::Project => {
+                        Err(FileError::NotFound(id.vpath().get_with_slash().into()))
+                    }
+                    VirtualRoot::Package(pkg) => {
+                        self.fetch_missing
+                            .lock()
+                            .map_err(|_| FileError::AccessDenied)?
+                            .push(pkg.clone());
+                        Err(FileError::NotFound(id.vpath().get_with_slash().into()))
+                    }
+                },
             }
         }
     }
@@ -123,7 +199,11 @@ impl TypJs {
             .write(Path::new("/main.typ"), Bytes::new(""));
 
         Self {
-            lib: LazyHash::new(Library::default()), // stdlib
+            lib: LazyHash::new(
+                Library::builder([typst_svg::FORMAT, typst_pdf::FORMAT])
+                    .with_features(Features::all())
+                    .build(),
+            ), // stdlib
             fonts,
             files,
             errors: EcoVec::new(),
@@ -186,7 +266,7 @@ impl TypJs {
     /// Outputs an SVG string with the rendered document
     ///
     /// If there are compile errors, sets the `errors` field and returns empty string
-    pub fn svg(&mut self) -> String {
+    pub async fn svg(&mut self) -> String {
         let compiled = typst::compile::<PagedDocument>(self);
 
         match compiled.output {
@@ -198,7 +278,18 @@ impl TypJs {
                 self.errors = compiled.warnings;
                 doc.pages()
                     .iter()
-                    .map(|page| typst_svg::svg(page))
+                    .map(|page| {
+                        typst_svg::svg(
+                            page,
+                            &typst_svg::SvgOptions {
+                                render_bleed: false,
+                                format: typst_svg::SvgFormatOptions {
+                                    pretty: Some(false),
+                                },
+                            }
+                            .resolve(doc.options().get::<SvgFormat>()),
+                        )
+                    })
                     .collect()
             }
         }
@@ -208,6 +299,8 @@ impl TypJs {
     ///
     /// If there are compile errors, sets the `errors` field and returns empty array
     pub fn pdf(&mut self) -> Vec<u8> {
+        todo!();
+        /*
         let compiled = typst::compile::<PagedDocument>(self);
 
         match compiled.output {
@@ -220,6 +313,7 @@ impl TypJs {
                 typst_pdf::pdf(&doc, &PdfOptions::default()).unwrap_or_default()
             }
         }
+        */
     }
 }
 
