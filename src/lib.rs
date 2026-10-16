@@ -19,7 +19,7 @@ use wasm_bindgen::prelude::*;
 mod fs {
     use std::{
         collections::HashMap,
-        io::Cursor,
+        io::{Cursor, Read},
         path::{Path, PathBuf},
         sync::{Arc, Mutex},
     };
@@ -180,11 +180,33 @@ mod fs {
                     }
                     VirtualRoot::Package(spec) => {
                         let pkg = self.universe.package(spec);
+                        let err = Err(FileError::NotFound(id.vpath().get_with_slash().into()));
+
                         match pkg {
-                            Ok(_) => info!("got archive {:#?}", spec),
-                            Err(_) => info!("failed {:#?}", spec),
+                            Ok(mut archive) => {
+                                info!("got archive {:#?}", spec);
+                                let wanted_path = id.vpath().get_without_slash();
+
+                                for entry in archive.entries().unwrap() {
+                                    let mut entry = entry.unwrap();
+
+                                    let path = entry.path().unwrap();
+                                    let path_ref = path.as_ref();
+                                    info!("cmp {:?} w {:?}", path_ref, wanted_path);
+                                    if path_ref == Path::new(wanted_path) {
+                                        let mut bytes = Vec::new();
+                                        entry.read_to_end(&mut bytes).unwrap();
+                                        return Ok(typst::foundations::Bytes::new(bytes));
+                                    }
+                                }
+
+                                return err;
+                            }
+                            Err(_) => {
+                                info!("failed {:#?}", spec);
+                                err
+                            }
                         }
-                        Err(FileError::NotFound(id.vpath().get_with_slash().into()))
                     }
                 },
             }
