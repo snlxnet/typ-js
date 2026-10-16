@@ -72,7 +72,8 @@ Works</textarea>
           errors.innerHTML = JSON.stringify(typ.errors(), null, 4)
         }
 
-        input.oninput()
+        typ.write("main.typ", input.value)
+        typ.deps().then(() => input.oninput())
 
         file.addEventListener("change", async () => {
           const f = file.files[0]

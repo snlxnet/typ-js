@@ -24,7 +24,6 @@ mod fs {
         sync::{Arc, Mutex},
     };
 
-    use log::info;
     use typst::{
         diag::FileError,
         foundations::Bytes,
@@ -138,7 +137,9 @@ mod fs {
                 let url = self.fetch_missing.lock().unwrap().pop();
                 match url {
                     None => run = false,
-                    Some(url) => self.fetch(&url).await,
+                    Some(url) => {
+                        self.fetch(&url).await;
+                    }
                 }
             }
         }
@@ -170,8 +171,6 @@ mod fs {
         fn load(&self, id: FileId) -> typst::diag::FileResult<typst::foundations::Bytes> {
             let store = self.files.lock().map_err(|_| FileError::AccessDenied)?;
 
-            info!("Loading id {:#?} root {:#?}", id, id.root());
-
             match store.get(&id) {
                 Some(bytes) => Ok(bytes.clone()),
                 None => match id.root() {
@@ -184,7 +183,6 @@ mod fs {
 
                         match pkg {
                             Ok(mut archive) => {
-                                info!("got archive {:#?}", spec);
                                 let wanted_path = id.vpath().get_without_slash();
 
                                 for entry in archive.entries().unwrap() {
@@ -192,7 +190,6 @@ mod fs {
 
                                     let path = entry.path().unwrap();
                                     let path_ref = path.as_ref();
-                                    info!("cmp {:?} w {:?}", path_ref, wanted_path);
                                     if path_ref == Path::new(wanted_path) {
                                         let mut bytes = Vec::new();
                                         entry.read_to_end(&mut bytes).unwrap();
@@ -202,10 +199,7 @@ mod fs {
 
                                 return err;
                             }
-                            Err(_) => {
-                                info!("failed {:#?}", spec);
-                                err
-                            }
+                            Err(_) => err,
                         }
                     }
                 },
@@ -301,14 +295,15 @@ impl TypJs {
             .write(Path::new(path), Bytes::new(data));
     }
 
+    pub async fn deps(&mut self) {
+        let _ = typst::compile::<PagedDocument>(self);
+        self.files.loader().download_packages().await;
+    }
+
     /// Outputs an SVG string with the rendered document
     ///
     /// If there are compile errors, sets the `errors` field and returns empty string
     pub async fn svg(&mut self) -> String {
-        // needs to be ran multiple times
-        let _before_fetch = typst::compile::<PagedDocument>(self);
-        self.files.loader().download_packages().await;
-
         let compiled = typst::compile::<PagedDocument>(self);
 
         match compiled.output {
