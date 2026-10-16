@@ -336,8 +336,6 @@ impl TypJs {
     ///
     /// If there are compile errors, sets the `errors` field and returns empty array
     pub fn pdf(&mut self) -> Vec<u8> {
-        todo!();
-        /*
         let compiled = typst::compile::<PagedDocument>(self);
 
         match compiled.output {
@@ -347,10 +345,11 @@ impl TypJs {
             }
             Ok(doc) => {
                 self.errors = compiled.warnings;
-                typst_pdf::pdf(&doc, &PdfOptions::default()).unwrap_or_default()
+                typst_pdf::pdf(&doc, &PdfOptions::default())
+                    .output
+                    .unwrap_or_default()
             }
         }
-        */
     }
 }
 
