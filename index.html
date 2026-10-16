@@ -67,7 +67,7 @@ Works</textarea>
       const output = document.getElementById("output")
 
       let typ
-      function main() {
+      async function main() {
         typ = pack.TypJs.new()
 
         input.oninput = async () => {
@@ -75,8 +75,10 @@ Works</textarea>
           output.innerHTML = await typ.svg("main.typ")
         }
 
+        typ.font(new Uint8Array(await (await fetch("/jetbrains mono.ttf")).arrayBuffer()))
         typ.add("main.typ", new TextEncoder().encode(input.value))
-        typ.deps("main.typ").then(() => input.oninput())
+        await typ.deps("main.typ")
+        input.oninput()
 
         file.addEventListener("change", async () => {
           const f = file.files[0]

@@ -246,6 +246,14 @@ impl TypJs {
         }
     }
 
+    pub fn font(&mut self, data: Vec<u8>) {
+        let fonts = Font::iter(Bytes::new(data)).map(|font| {
+            let info = font.info().clone();
+            (font, info)
+        });
+        self.fonts.extend(fonts);
+    }
+
     /// Deletes a given file
     pub fn delete(&mut self, path: &str) {
         self.files.loader_mut().delete(Path::new(path));
