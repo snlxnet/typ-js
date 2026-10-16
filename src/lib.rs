@@ -1,7 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use codespan_reporting::diagnostic::{Diagnostic, Label};
-use log::info;
 use serde::Serialize;
 use typst::{
     Features, Library, LibraryExt, World,
@@ -113,28 +111,17 @@ mod fs {
             FileId::new(rooted)
         }
 
-        pub fn delete(&mut self, path: &Path) {
-            let mut files = self.files.lock().unwrap();
-
-            files.remove(&self.find(path));
-        }
-
-        pub fn list(&self) -> Vec<String> {
-            self.files
-                .lock()
-                .unwrap()
-                .keys()
-                .into_iter()
-                .map(|id| id.vpath().get_without_slash().to_string())
-                .collect()
-        }
-
         pub fn write(&mut self, path: &Path, data: Bytes) {
             let Ok(mut fs) = self.files.lock() else {
                 return;
             };
 
             fs.insert(self.find(path), data);
+        }
+
+        pub fn clear(&mut self) {
+            let files = self.files.get_mut().unwrap();
+            files.drain();
         }
 
         pub async fn download_packages(&self) {
@@ -287,22 +274,13 @@ impl TypJs {
         self.fonts.extend(fonts);
     }
 
-    /// Deletes a given file
-    pub fn delete(&mut self, path: &str) {
-        self.files.loader_mut().delete(Path::new(path));
-
+    /// Deletes everything in the filesystem (fonts & package cache are left intact)
+    pub fn reset(&mut self) {
+        self.files.loader_mut().clear();
         self.files.reset();
     }
 
-    /// Returns the paths to all files available to the compiler,
-    /// including `main.typ`.
-    ///
-    /// Paths do *NOT* start with `/`.
-    pub fn list(&self) -> Vec<String> {
-        self.files.loader().list()
-    }
-
-    /// Adds a binary file (image, font, etc.)
+    /// Adds a file
     pub fn add(&mut self, path: &str, data: Vec<u8>) {
         self.files
             .loader_mut()
@@ -310,15 +288,14 @@ impl TypJs {
         self.files.reset();
     }
 
+    /// Fetches universe packages for a given main file
     pub async fn deps(&mut self, main: &str) {
         self.files.loader_mut().set_main(&PathBuf::from(main));
         let _ = typst::compile::<PagedDocument>(self);
         self.files.loader().download_packages().await;
     }
 
-    /// Outputs an SVG string with the rendered document
-    ///
-    /// If there are compile errors, sets the `errors` field and returns empty string
+    /// Renders as SVG
     pub async fn svg(&mut self, main: &str) -> JsValue {
         self.files.loader_mut().set_main(&PathBuf::from(main));
         let compiled = typst::compile::<PagedDocument>(self);
@@ -356,7 +333,8 @@ impl TypJs {
         serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
-    pub fn pdf(&mut self, main: &str) -> JsValue {
+    /// Renders as PDF
+    pub async fn pdf(&mut self, main: &str) -> JsValue {
         self.files.loader_mut().set_main(&PathBuf::from(main));
         let compiled = typst::compile::<PagedDocument>(self);
 
