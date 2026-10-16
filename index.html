@@ -3,9 +3,33 @@
   <head>
     <meta charset="utf-8" />
     <title>typ-js example</title>
+    <style>
+      html, body {
+        background: #121212;
+        color: #ccc;
+        font-family: monospace;
+        font-size: 16px;
+      }
+      textarea, input, button {
+        display: block;
+        padding: 0.6em;
+        font-family: inherit;
+        font-size: inherit;
+        border-radius: 1em;
+        background: #2e2d39;
+        color: inherit;
+        border: 3px solid black;
+        &:focus {
+          outline: 3px solid #a8a5ff;
+        }
+      }
+    </style>
   </head>
   <body>
-    <textarea id="input" placeholder="Type here"></textarea>
+    <textarea id="input" placeholder="Type here">#set page(fill: rgb("#2e2d39"))
+#set text(fill: rgb("#ccc"))
+
+Works</textarea>
     <input id="file" type="file"></input>
     
     <pre id="tree">
@@ -35,14 +59,15 @@
 
       init().then(() => {
         const typ = TypJs.new()
-        output.innerHTML = typ.svg()
         tree.innerHTML = typ.list()
 
-        input.addEventListener("input", () => {
+        input.oninput =  () => {
           typ.write("main.typ", input.value)
           output.innerHTML = typ.svg()
           errors.innerHTML = JSON.stringify(typ.errors(), null, 4)
-        })
+        }
+
+        input.oninput()
 
         file.addEventListener("change", async () => {
           const f = file.files[0]

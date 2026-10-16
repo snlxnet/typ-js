@@ -4,6 +4,8 @@
 
 ## Usage
 
+building: `wasm-pack build --target web --debug`
+
 (coming after I improve error handling)
 
 ## Plans

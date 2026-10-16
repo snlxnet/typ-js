@@ -115,7 +115,7 @@ impl TypJs {
         let mut files = FileStore::new(fs::FS::new());
         files
             .loader_mut()
-            .write(Path::new("/main.typ"), Bytes::new("Hello"));
+            .write(Path::new("/main.typ"), Bytes::new(""));
 
         Self {
             lib: LazyHash::new(Library::default()), // stdlib
