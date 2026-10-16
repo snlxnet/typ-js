@@ -21,6 +21,7 @@ mod fs {
         sync::Mutex,
     };
 
+    use log::info;
     use typst::{
         diag::FileError,
         foundations::Bytes,
@@ -89,6 +90,8 @@ mod fs {
         fn load(&self, id: FileId) -> typst::diag::FileResult<typst::foundations::Bytes> {
             let store = self.files.lock().map_err(|_| FileError::AccessDenied)?;
 
+            info!("Loading id {:#?} root {:#?}", id, id.root());
+
             match store.get(&id) {
                 Some(bytes) => Ok(bytes.clone()),
                 None => Err(FileError::NotFound(id.vpath().get_with_slash().into())),
@@ -109,6 +112,8 @@ pub struct TypJs {
 #[wasm_bindgen]
 impl TypJs {
     pub fn new() -> Self {
+        console_log::init_with_level(log::Level::Debug);
+
         let mut fonts = FontStore::new();
         fonts.extend(typst_kit::fonts::embedded());
 
