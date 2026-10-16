@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use typst::{
     Features, Library, LibraryExt, World,
@@ -27,7 +27,7 @@ mod fs {
     use typst::{
         diag::FileError,
         foundations::Bytes,
-        syntax::{FileId, RootedPath, VirtualPath, VirtualRoot, package::PackageSpec},
+        syntax::{FileId, RootedPath, VirtualPath, VirtualRoot},
     };
     use typst_kit::{
         downloader::Downloader,
@@ -82,8 +82,7 @@ mod fs {
         pub fn new() -> Self {
             let project = FsRoot::new(PathBuf::from(""));
             let project_path = project.path().to_path_buf();
-            let path = PathBuf::from("main.typ");
-            let main = str_to_rooted(&project_path, &path).intern();
+            let main = str_to_rooted(&project_path, &PathBuf::from("main.typ")).intern();
 
             let cache = Arc::new(Mutex::new(HashMap::new()));
             let missing = Arc::new(Mutex::new(Vec::new()));
@@ -99,6 +98,10 @@ mod fs {
                 cache,
                 fetch_missing: missing,
             }
+        }
+
+        pub fn set_main(&mut self, path: &Path) {
+            self.main = str_to_rooted(&self.project_path, path).intern();
         }
 
         fn find(&self, path: &Path) -> FileId {
@@ -295,7 +298,8 @@ impl TypJs {
             .write(Path::new(path), Bytes::new(data));
     }
 
-    pub async fn deps(&mut self) {
+    pub async fn deps(&mut self, main: &str) {
+        self.files.loader_mut().set_main(&PathBuf::from(main));
         let _ = typst::compile::<PagedDocument>(self);
         self.files.loader().download_packages().await;
     }
@@ -303,7 +307,8 @@ impl TypJs {
     /// Outputs an SVG string with the rendered document
     ///
     /// If there are compile errors, sets the `errors` field and returns empty string
-    pub async fn svg(&mut self) -> String {
+    pub async fn svg(&mut self, main: &str) -> String {
+        self.files.loader_mut().set_main(&PathBuf::from(main));
         let compiled = typst::compile::<PagedDocument>(self);
 
         match compiled.output {
@@ -335,7 +340,8 @@ impl TypJs {
     /// Outputs a PDF with the rendered document as a UInt8Array
     ///
     /// If there are compile errors, sets the `errors` field and returns empty array
-    pub fn pdf(&mut self) -> Vec<u8> {
+    pub fn pdf(&mut self, main: &str) -> Vec<u8> {
+        self.files.loader_mut().set_main(&PathBuf::from(main));
         let compiled = typst::compile::<PagedDocument>(self);
 
         match compiled.output {

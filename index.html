@@ -5,14 +5,21 @@
     <title>typ-js example</title>
     <style>
       html, body {
+        margin: 0;
+        padding: 0;
         background: #121212;
         color: #ccc;
         font-family: monospace;
         font-size: 16px;
       }
+      body {
+        padding: 1em;
+      }
       textarea, input, button {
+        box-sizing: border-box;
         display: block;
         padding: 0.6em;
+        margin-bottom: 0.6em;
         font-family: inherit;
         font-size: inherit;
         border-radius: 1em;
@@ -20,12 +27,16 @@
         color: inherit;
         border: 3px solid black;
         &:focus {
-          outline: 3px solid #a8a5ff;
+          border-color: #a8a5ff;
+          outline: none;
         }
       }
       textarea {
         width: 100%;
         height: 50vh;
+      }
+      svg {
+        width: 100%;
       }
     </style>
   </head>
@@ -37,10 +48,6 @@
 Works</textarea>
     <input id="file" type="file"></input>
     
-    <pre id="tree">
-    </pre>
-    <pre id="errors">
-    </pre>
     <div id="output">
       Loading...
     </div>
@@ -57,23 +64,19 @@ Works</textarea>
       const input = document.getElementById("input")
       const file = document.getElementById("file")
       const download = document.getElementById("download")
-      const tree = document.getElementById("tree")
-      const errors = document.getElementById("errors")
       const output = document.getElementById("output")
 
       let typ
       function main() {
         typ = pack.TypJs.new()
-        tree.innerHTML = typ.list()
 
         input.oninput = async () => {
           typ.write("main.typ", input.value)
-          output.innerHTML = await typ.svg()
-          errors.innerHTML = JSON.stringify(typ.errors(), null, 4)
+          output.innerHTML = await typ.svg("main.typ")
         }
 
         typ.write("main.typ", input.value)
-        typ.deps().then(() => input.oninput())
+        typ.deps("main.typ").then(() => input.oninput())
 
         file.addEventListener("change", async () => {
           const f = file.files[0]
@@ -81,7 +84,7 @@ Works</textarea>
           const data = await f.arrayBuffer()
           const array = new Uint8Array(data)
 
-          output.innerHTML = await typ.svg()
+          output.innerHTML = await typ.svg("main.typ")
         })
 
         download.addEventListener("click", () => {
