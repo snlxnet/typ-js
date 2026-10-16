@@ -43,7 +43,7 @@
   <body>
     <textarea id="input" placeholder="Type here">#set page(fill: rgb("#2e2d39"))
 #set text(fill: rgb("#ccc"), font: "JetBrains Mono")
-#import "@preview/yap:0.1.0"
+// #import "@preview/yap:0.1.0"
 
 Works</textarea>
     <input id="file" type="file"></input>
@@ -95,7 +95,7 @@ Works</textarea>
         })
 
         download.addEventListener("click", () => {
-          const file = new File([typ.pdf()], "typ-js-output.pdf")
+          const file = new File([typ.pdf("main.typ").pdf], "typ-js-output.pdf")
           const link = document.createElement("a")
           link.href = URL.createObjectURL(file)
           link.download = "typ-js-output.pdf"

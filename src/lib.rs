@@ -221,6 +221,13 @@ struct SvgResult {
 }
 
 #[derive(Serialize)]
+struct PdfResult {
+    #[serde(with = "serde_bytes")]
+    pdf: Vec<u8>,
+    err: Vec<Error>,
+}
+
+#[derive(Serialize)]
 struct Error {
     severe: bool,
     line: usize,
@@ -244,7 +251,6 @@ pub struct TypJs {
     lib: LazyHash<Library>,
     fonts: FontStore,
     files: FileStore<fs::FS>,
-    errors: EcoVec<SourceDiagnostic>,
     now: Time,
 }
 
@@ -269,7 +275,6 @@ impl TypJs {
             ), // stdlib
             fonts,
             files,
-            errors: EcoVec::new(),
             now: Time::system(),
         }
     }
@@ -295,25 +300,6 @@ impl TypJs {
     /// Paths do *NOT* start with `/`.
     pub fn list(&self) -> Vec<String> {
         self.files.loader().list()
-    }
-
-    /// Returns a list of errors if the last compilation failed or warnings if it finished successfully
-    pub fn errors(&self) -> Vec<String> {
-        self.errors
-            .iter()
-            .map(|err| {
-                format!(
-                    "SPAN: {:?} ||| MSG: {} ||| HINT: {}",
-                    err.span,
-                    err.message.clone(),
-                    err.hints
-                        .iter()
-                        .map(|spanned| spanned.v.clone())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )
-            })
-            .collect()
     }
 
     /// Adds a binary file (image, font, etc.)
@@ -367,28 +353,27 @@ impl TypJs {
             }
         };
 
-        JsValue::from_serde(&result).unwrap()
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
-    /// Outputs a PDF with the rendered document as a UInt8Array
-    ///
-    /// If there are compile errors, sets the `errors` field and returns empty array
-    pub fn pdf(&mut self, main: &str) -> Vec<u8> {
+    pub fn pdf(&mut self, main: &str) -> JsValue {
         self.files.loader_mut().set_main(&PathBuf::from(main));
         let compiled = typst::compile::<PagedDocument>(self);
 
-        match compiled.output {
-            Err(errors) => {
-                self.errors = errors;
-                Vec::new()
-            }
-            Ok(doc) => {
-                self.errors = compiled.warnings;
-                typst_pdf::pdf(&doc, &PdfOptions::default())
+        let result = match compiled.output {
+            Err(errors) => PdfResult {
+                pdf: Vec::new(),
+                err: self.format_diagnostics(errors),
+            },
+            Ok(doc) => PdfResult {
+                pdf: typst_pdf::pdf(&doc, &PdfOptions::default())
                     .output
-                    .unwrap_or_default()
-            }
-        }
+                    .unwrap_or_default(),
+                err: self.format_diagnostics(compiled.warnings),
+            },
+        };
+
+        serde_wasm_bindgen::to_value(&result).unwrap()
     }
 
     fn format_diagnostics(&mut self, diagnostics: EcoVec<SourceDiagnostic>) -> Vec<Error> {
