@@ -45,7 +45,8 @@
 #set text(fill: rgb("#ccc"), font: "JetBrains Mono")
 // #import "@preview/yap:0.1.0"
 
-Works</textarea>
+Designed to power
+#image(read("https://dyno.snlx.net/card.svg", encoding: none))</textarea>
     <input id="file" type="file"></input>
     
     <div id="output">
@@ -71,6 +72,15 @@ Works</textarea>
         await typ.deps("main.typ")
         const { svg, err } = await typ.svg("main.typ")
         if (svg && err.length) console.warn(...err)
+        const netErr = err.find(({hints}) => hints.includes("hint: network access is not supported"))
+        if (netErr) {
+          const [_, protocol, link] = netErr.message.split(/(https?):\//)
+          const url = protocol + "://" + link.slice(0, -1)
+          const res = await fetch(url)
+          typ.add(url, new Uint8Array(await res.arrayBuffer()))
+          compile()
+          return
+        }
         output.innerHTML = svg || `<pre>${JSON.stringify(err, null, 4)}</pre>`
       }
       async function main() {
