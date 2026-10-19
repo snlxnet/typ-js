@@ -2,8 +2,8 @@ use ecow::EcoString;
 use log::info;
 use ttf_parser::GlyphId;
 use typst_library::layout::{Abs, Ratio, Size, Transform};
-use typst_library::text::TextItem;
 use typst_library::text::color::{GlyphFrame, GlyphFrameItem, glyph_frame, should_outline};
+use typst_library::text::{FontInfo, FontStyle, FontVariant, TextItem};
 use typst_library::visualize::{FillRule, Paint, RelativeTo};
 
 use crate::path::SvgPathBuilder;
@@ -26,8 +26,16 @@ impl SVGRenderer<'_> {
     /// try to render the text as SVG first, then bitmap, then outline. If none
     /// of them works, we will skip the text.
     pub(super) fn render_text(&mut self, svg: &mut SvgElem, state: &State, text: &TextItem) {
-        let family = &text.font.font().info().family;
+        let FontInfo {
+            family, variant, ..
+        } = &text.font.font().info();
+        let FontVariant { style, weight, .. } = variant;
         let size = text.size.to_pt() * 0.75;
+        let style = match style {
+            FontStyle::Normal => "normal",
+            FontStyle::Italic => "italic",
+            FontStyle::Oblique => "oblique",
+        };
         info!("Got text {:#?} {:#?}", text.fill, text.stroke);
 
         let mut txt = &mut svg.elem("text");
@@ -36,7 +44,7 @@ impl SVGRenderer<'_> {
         }
         txt.attr(
             "style",
-            format!("font-family: \"{family}\";font-size: {size}pt;").as_str(),
+            format!("font-family:\"{family}\";font-size:{size}pt;font-style:{style};font-weight:{weight}").as_str(),
         );
         self.write_fill(
             &mut txt,
