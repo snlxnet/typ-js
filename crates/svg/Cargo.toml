@@ -25,3 +25,6 @@ rustc-hash = "2.1"
 ryu = "1"
 ttf-parser = "0.25.0" # maybe this will go
 xmlwriter = "0.1.0"
+
+console_log = "1.1.0"
+log = "0.4.34"

@@ -31,13 +31,14 @@ impl<'a> SvgElem<'a> {
     }
 
     /// Write an SVG attribute, to an [`SvgFormatter`].
-    pub fn attr_with(
-        &mut self,
-        name: &str,
-        fmt: impl FnOnce(&mut SvgFormatter),
-    ) -> &mut Self {
+    pub fn attr_with(&mut self, name: &str, fmt: impl FnOnce(&mut SvgFormatter)) -> &mut Self {
         self.xml
             .write_attribute_raw(name, |buf| fmt(&mut SvgFormatter::new(buf)));
+        self
+    }
+
+    pub fn text(&mut self, text: &str) -> &mut Self {
+        self.xml.write_text(text);
         self
     }
 
@@ -62,7 +63,11 @@ pub struct LazySvgElem<'a, 'b> {
 
 impl<'a, 'b> LazySvgElem<'a, 'b> {
     pub fn new(parent: &'b mut SvgElem<'a>, name: &'static str) -> Self {
-        Self { inner: parent, initialized: false, name }
+        Self {
+            inner: parent,
+            initialized: false,
+            name,
+        }
     }
 
     /// Initialize the child element, if not already present.

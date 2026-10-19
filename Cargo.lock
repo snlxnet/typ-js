@@ -3597,6 +3597,7 @@ version = "0.15.1"
 dependencies = [
  "base64 0.22.1",
  "comemo",
+ "console_log",
  "ecow",
  "flate2",
  "hayro",
@@ -3604,6 +3605,7 @@ dependencies = [
  "image",
  "indexmap",
  "itoa",
+ "log",
  "rustc-hash",
  "ryu",
  "ttf-parser",

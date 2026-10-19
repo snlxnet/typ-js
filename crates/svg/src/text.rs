@@ -1,10 +1,9 @@
 use ecow::EcoString;
+use log::info;
 use ttf_parser::GlyphId;
 use typst_library::layout::{Abs, Ratio, Size, Transform};
 use typst_library::text::TextItem;
-use typst_library::text::color::{
-    GlyphFrame, GlyphFrameItem, glyph_frame, should_outline,
-};
+use typst_library::text::color::{GlyphFrame, GlyphFrameItem, glyph_frame, should_outline};
 use typst_library::visualize::{FillRule, Paint, RelativeTo};
 
 use crate::path::SvgPathBuilder;
@@ -26,12 +25,30 @@ impl SVGRenderer<'_> {
     /// Render a text item. The text is rendered as a group of glyphs. We will
     /// try to render the text as SVG first, then bitmap, then outline. If none
     /// of them works, we will skip the text.
-    pub(super) fn render_text(
-        &mut self,
-        svg: &mut SvgElem,
-        state: &State,
-        text: &TextItem,
-    ) {
+    pub(super) fn render_text(&mut self, svg: &mut SvgElem, state: &State, text: &TextItem) {
+        let family = &text.font.font().info().family;
+        let size = &text.size.to_pt();
+        info!("Got text {:#?} {:#?}", text.fill, text.stroke);
+
+        let mut txt = &mut svg.elem("text");
+        if !state.transform.is_identity() {
+            txt.attr("transform", SvgTransform(state.transform));
+        }
+        txt.attr(
+            "style",
+            format!("font-family: \"{family}\";font-size: {size}pt;").as_str(),
+        );
+        self.write_fill(
+            &mut txt,
+            &text.fill,
+            FillRule::default(),
+            Size::new(text.width(), text.height()).aspect_ratio(),
+            self.text_paint_transform(&state, &text.fill),
+        );
+        txt.attr("y", "0");
+        txt.text(&text.text);
+
+        /*
         let svg = &mut svg.elem("g");
 
         // Flip the transform since fonts use a Y-Up coordinate system.
@@ -45,11 +62,14 @@ impl SVGRenderer<'_> {
             let x_offset = x + glyph.x_offset.at(text.size);
             let y_offset = y + glyph.y_offset.at(text.size);
 
+            info!("writing a glyph {:#?}", &glyph);
+
             self.render_glyph(svg, &state, text, id, x_offset, y_offset);
 
             x += glyph.x_advance.at(text.size);
             y += glyph.y_advance.at(text.size);
         }
+        */
     }
 
     fn render_glyph(
@@ -73,9 +93,7 @@ impl SVGRenderer<'_> {
             });
 
             if path.is_some() {
-                self.render_path_glyph(
-                    svg, state, text, glyph_id, x_offset, y_offset, id,
-                );
+                self.render_path_glyph(svg, state, text, glyph_id, x_offset, y_offset, id);
             }
         } else {
             // Image glyphs apply a `scale` at use site, since colr, svg-, and
@@ -104,8 +122,8 @@ impl SVGRenderer<'_> {
     ) {
         let scale = Ratio::new(text.size.to_pt() / text.font.units_per_em());
         // Flip the transform again, since images are drawn Y-Down.
-        let ts = Transform::translate(x_offset, y_offset)
-            .pre_concat(Transform::scale(scale, -scale));
+        let ts =
+            Transform::translate(x_offset, y_offset).pre_concat(Transform::scale(scale, -scale));
 
         svg.elem("use")
             .attr("xlink:href", SvgIdRef(id))
