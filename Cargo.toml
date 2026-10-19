@@ -9,12 +9,16 @@ edition = "2024"
 [lib]
 crate-type = ["cdylib"]
 
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
 [dependencies]
 typst = { git = "https://github.com/typst/typst.git" }
 typst-layout = { git = "https://github.com/typst/typst.git" }
 typst-kit = { git = "https://github.com/typst/typst.git", features = ["embedded-fonts", "bundle", "datetime", "universe-packages"] }
 typst-pdf = { git = "https://github.com/typst/typst.git" }
-typst-svg = { git = "https://github.com/typst/typst.git" }
+typst-svg-mod = { path = "crates/svg" }
 wasm-bindgen = { version = "0.2", features = ["serde-serialize"]  }
 reqwest = "0.13.5"
 console_log = "1.1.0"

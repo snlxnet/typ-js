@@ -1,0 +1,27 @@
+[package]
+name = "typst-svg-mod"
+description = "Modified SVG exporter for typ-js"
+version = "0.15.1"
+edition = "2024"
+
+[dependencies]
+typst-assets = { git = "https://github.com/typst/typst-assets", rev = "94dcb99" }
+typst-layout = { git = "https://github.com/typst/typst.git" }
+typst-library = { git = "https://github.com/typst/typst.git" }
+typst-macros = { git = "https://github.com/typst/typst.git" }
+typst-syntax = { git = "https://github.com/typst/typst.git" }
+typst-timing = { git = "https://github.com/typst/typst.git" }
+typst-utils = { git = "https://github.com/typst/typst.git", features = ["full"] }
+base64 = "0.22"
+comemo = "0.5.1"
+ecow = { version = "0.2.6", features = ["serde"] }
+flate2 = { version = "1", features = ["zlib-rs"] }
+hayro = { git = "https://github.com/LaurenzV/hayro", rev = "d8e24e29eda62581e1ea15497effb2a884fb1608", default-features = false }
+hayro-svg = { git = "https://github.com/LaurenzV/hayro", rev = "d8e24e29eda62581e1ea15497effb2a884fb1608", default-features = false }
+image = { version = "0.25.5", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+indexmap = { version = "2", features = ["serde", "rayon"] }
+itoa = "1"
+rustc-hash = "2.1"
+ryu = "1"
+ttf-parser = "0.25.0" # maybe this will go
+xmlwriter = "0.1.0"

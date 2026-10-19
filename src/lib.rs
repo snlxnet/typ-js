@@ -14,7 +14,7 @@ use typst::{
 use typst_kit::{datetime::Time, files::FileStore, fonts::FontStore};
 use typst_layout::PagedDocument;
 use typst_pdf::PdfOptions;
-use typst_svg::SvgFormat;
+use typst_svg_mod::SvgFormat;
 use wasm_bindgen::prelude::*;
 
 mod fs {
@@ -256,7 +256,7 @@ impl TypJs {
 
         Self {
             lib: LazyHash::new(
-                Library::builder([typst_svg::FORMAT, typst_pdf::FORMAT])
+                Library::builder([typst_svg_mod::FORMAT, typst_pdf::FORMAT])
                     .with_features(Features::all())
                     .build(),
             ), // stdlib
@@ -310,11 +310,11 @@ impl TypJs {
                     .pages()
                     .iter()
                     .map(|page| {
-                        typst_svg::svg(
+                        typst_svg_mod::svg(
                             page,
-                            &typst_svg::SvgOptions {
+                            &typst_svg_mod::SvgOptions {
                                 render_bleed: false,
-                                format: typst_svg::SvgFormatOptions {
+                                format: typst_svg_mod::SvgFormatOptions {
                                     pretty: Some(false),
                                 },
                             }

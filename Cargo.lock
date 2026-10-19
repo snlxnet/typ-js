@@ -3254,7 +3254,7 @@ dependencies = [
  "typst-kit",
  "typst-layout",
  "typst-pdf",
- "typst-svg",
+ "typst-svg-mod",
  "wasm-bindgen",
  "wasm-bindgen-futures",
 ]
@@ -3568,6 +3568,32 @@ dependencies = [
 name = "typst-svg"
 version = "0.15.1"
 source = "git+https://github.com/typst/typst.git#bd5ebec285505889e8ff1d4f68804ab147a699f3"
+dependencies = [
+ "base64 0.22.1",
+ "comemo",
+ "ecow",
+ "flate2",
+ "hayro",
+ "hayro-svg",
+ "image",
+ "indexmap",
+ "itoa",
+ "rustc-hash",
+ "ryu",
+ "ttf-parser",
+ "typst-assets",
+ "typst-layout",
+ "typst-library",
+ "typst-macros",
+ "typst-syntax",
+ "typst-timing",
+ "typst-utils",
+ "xmlwriter",
+]
+
+[[package]]
+name = "typst-svg-mod"
+version = "0.15.1"
 dependencies = [
  "base64 0.22.1",
  "comemo",
