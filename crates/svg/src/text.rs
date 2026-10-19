@@ -27,7 +27,7 @@ impl SVGRenderer<'_> {
     /// of them works, we will skip the text.
     pub(super) fn render_text(&mut self, svg: &mut SvgElem, state: &State, text: &TextItem) {
         let family = &text.font.font().info().family;
-        let size = &text.size.to_pt();
+        let size = text.size.to_pt() * 0.75;
         info!("Got text {:#?} {:#?}", text.fill, text.stroke);
 
         let mut txt = &mut svg.elem("text");
