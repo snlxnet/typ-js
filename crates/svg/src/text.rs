@@ -29,14 +29,30 @@ impl SVGRenderer<'_> {
         let FontInfo {
             family, variant, ..
         } = &text.font.font().info();
-        let FontVariant { style, weight, .. } = variant;
+        let FontVariant {
+            style,
+            weight,
+            stretch,
+            ..
+        } = variant;
         let size = text.size.to_pt() * 0.75;
         let style = match style {
             FontStyle::Normal => "normal",
             FontStyle::Italic => "italic",
             FontStyle::Oblique => "oblique",
         };
-        info!("Got text {:#?} {:#?}", text.fill, text.stroke);
+        // let glyph = text.glyphs.first().unwrap();
+        let dx = text
+            .glyphs
+            .iter()
+            .map(|glyph| {
+                glyph.x_advance.at(text.size).to_mm() - 2.32833 // for now
+            })
+            .map(|v| v.to_string() + "mm")
+            .collect::<Vec<_>>()
+            .join(" ");
+        let ls = text.glyphs.first().unwrap().x_advance.get();
+        info!("dx: {dx}");
 
         let mut txt = &mut svg.elem("text");
         if !state.transform.is_identity() {
@@ -53,7 +69,7 @@ impl SVGRenderer<'_> {
             Size::new(text.width(), text.height()).aspect_ratio(),
             self.text_paint_transform(&state, &text.fill),
         );
-        txt.attr("y", "0");
+        txt.attr("dx", format!("0 {dx}").as_str());
         txt.text(&text.text);
 
         /*
