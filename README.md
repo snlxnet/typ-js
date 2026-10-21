@@ -6,20 +6,23 @@
 
 building: `wasm-pack build --target web --debug`
 
-(coming after I improve error handling)
+```js
+import init, { TypJs } from "./pkg/typ_js.js";
 
-## Plans
-- [x] render to SVG
-- [x] render to PDF
-- [x] add js `File`s
-- [x] shrink the binary
-- [x] switch to the latest typst builds
-- [x] set up CI for this repo
-- [ ] add font function
-- [ ] auto-download libs
-- [ ] error reporting
-- [ ] `read` URLs
-- [ ] friendly init
+await init()
+const typ = TypJs.new()
+
+const res = await fetch("/jetbrains mono.ttf")
+typ.font(new Uint8Array(await res.arrayBuffer()))
+
+typ.add("main.typ", new TextEncoder().encode(input.value))
+typ.add("dir/image.png", new Uint8Array(file.arrayBuffer())) // file is a File
+await typ.deps("main.typ") // download `@preview/` packages
+const { svg, err } = await typ.svg("main.typ")
+const { pdf, err } = await typ.pdf("main.typ")
+
+typ.reset()
+```
 
 ## Goals
 - simple API
