@@ -46,9 +46,21 @@ impl SVGRenderer<'_> {
             .glyphs
             .iter()
             .map(|glyph| {
-                glyph.x_advance.at(text.size).to_mm() - 2.32833 // for now
+                let advance = glyph.x_advance.at(text.size);
+                let id = GlyphId(glyph.id);
+                let Some(size) = text.font.ttf().glyph_bounding_box(id) else {
+                    return Abs::pt(0.0);
+                };
+                let width = Abs::pt(
+                    (size.width() as f64) / (text.font.ttf().units_per_em() as f64)
+                        * text.size.to_pt()
+                        * 1.333,
+                );
+                info!("got size indeed a{:#?}, w{:#?}", advance, width);
+
+                advance - width
             })
-            .map(|v| v.to_string() + "mm")
+            .map(|v| v.to_mm().to_string() + "mm")
             .collect::<Vec<_>>()
             .join(" ");
         let ls = text.glyphs.first().unwrap().x_advance.get();
